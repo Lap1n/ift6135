@@ -5,14 +5,17 @@ import scipy
 from scipy.special import softmax
 from scipy.stats import entropy, stats
 
-INPUT_SIZE = 784
 OUTPUT = 10
 
 
 class NN(object):
-    def __init__(self, hidden_dims=(1024, 2048), n_hidden=2, learning_rate=0.001, mini_batch_size=100, mode='train',
+    def __init__(self, input_dim=784, output_dim=10, hidden_dims=(1024, 2048), n_hidden=2, learning_rate=0.001,
+                 mini_batch_size=100,
+                 mode='train',
                  datapath=None,
                  model_path=None):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         self.learning_rate = learning_rate
         self.mini_batch_size = mini_batch_size
         self.hidden_dims = hidden_dims
@@ -27,38 +30,46 @@ class NN(object):
 
     def initialize_weights(self, type="normal"):
         self.weights = []
+        input_dim = self.input_dim
+
         if type == "zero":
             for i in range(self.n_hidden):
-                shape = (self.hidden_dims[i],)
-
+                shape = (self.hidden_dims[i], input_dim)
                 self.weights.append(np.zeros(shape))
+                input_dim = self.hidden_dims[i]
+            self.weights.append(np.zeros((self.output_dim, input_dim)))
+
         elif type == "normal":
             for i in range(self.n_hidden):
-                shape = (self.hidden_dims[i],)
+                shape = (self.hidden_dims[i], input_dim)
                 self.weights.append(np.random.normal(0, 1, shape))
+                input_dim = self.hidden_dims[i]
+            self.weights.append(np.random.normal(0, 1, (self.output_dim, input_dim)))
+
         elif type == "glorot":
             d = math.sqrt(6 / (self.hidden_dims[-2] + self.hidden_dims[-1]))
             for i in range(self.n_hidden):
-                shape = (self.hidden_dims[i], INPUT_SIZE)
-
+                shape = (self.hidden_dims[i], input_dim)
                 self.weights.append(np.random.uniform(-d, d, shape))
+                input_dim = self.hidden_dims[i]
+            self.weights.append(np.random.uniform(-d, d, (self.output_dim, input_dim)))
 
     def forward(self, input):
         x = input
         for i in range(len(self.weights) - 1):
             self.x_cache.append(x)
             weight = self.weights[i]
-            linear_output = x @ weight
+            linear_output = x @ weight.transpose()
             self.h_cache.append(linear_output)
             x = self.activation(linear_output)
             self.activation_output_cache.append(x)
         last_weight_layer = self.weights[-1]
-        return softmax(x @ last_weight_layer)
+        return self.softmax(x @ last_weight_layer.transpose())
 
     @staticmethod
     def activation(input):
         # RELU for now
-        return np.max(0, input)
+        return np.maximum(0, input)
 
     @staticmethod
     def loss(prediction, target, epsilon=1e-12):
@@ -69,7 +80,7 @@ class NN(object):
 
     @staticmethod
     def softmax(input):
-        return softmax(input, axis=0)
+        return softmax(input, axis=1)
 
     def backward(self, predictiction, labels):
         # first layer
@@ -95,12 +106,13 @@ class NN(object):
 
     def train(self, train_set, validation_set):
         x = train_set[0]
-        y = train_set[0]
+        y = train_set[1]
 
         for i in range(0, len(x), self.mini_batch_size):
             sample_x = x[i:i + self.mini_batch_size]
             sample_y = y[i:i + self.mini_batch_size]
-            prediction = self.forward(sample_x)
+            probabilities = self.forward(sample_x)
+            prediction = np.argmax(probabilities, axis=1)
             loss = self.loss(prediction, sample_y)
             print("Loss : {}".format(loss))
 
@@ -109,8 +121,8 @@ class NN(object):
 
     @staticmethod
     def accuracty(pred, y):
-        y_pred = np.argmax(pred, axis=0)
-        y = np.argmax(y, axis=0)
+        y_pred = np.argmax(pred, axis=1)
+        y = np.argmax(y, axis=1)
         total_score = 0
         for i in range(len(y_pred)):
             if y_pred == y:
@@ -118,6 +130,8 @@ class NN(object):
         return total_score / len(y_pred) * 100
 
     def test(self, test_set):
+        x = test_set[0]
+        y = test_set[1]
         predictions = self.forward(x)
         loss = self.loss(predictions, y)
         print("Loss : {}".format(loss))
