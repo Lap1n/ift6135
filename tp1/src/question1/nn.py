@@ -157,9 +157,9 @@ class NN(object):
 
     @staticmethod
     def convert_label_to_one_hot(labels):
-        y_onehots = np.zeros((labels.shape[0], 10))
-        y_onehots[np.arange(labels.shape[0]), labels] = 1
-        return y_onehots
+        y_one_hots = np.zeros((labels.shape[0], 10))
+        y_one_hots[np.arange(labels.shape[0]), labels] = 1
+        return y_one_hots
 
     @staticmethod
     def accuracty(pred, y):
