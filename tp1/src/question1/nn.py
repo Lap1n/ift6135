@@ -174,4 +174,5 @@ class NN(object):
     def derivative_relu(self, x):
         derivative = np.empty(x.shape)
         derivative[x <= 0] = 0
+        derivative[x > 0] = 1
         return derivative
