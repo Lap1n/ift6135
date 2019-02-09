@@ -162,7 +162,7 @@ class NN(object):
         return y_one_hots
 
     @staticmethod
-    def accuracty(pred, y):
+    def accuracy(pred, y):
         y_pred = np.argmax(pred, axis=1)
         y = np.argmax(y, axis=1)
         total_score = 0
@@ -178,7 +178,7 @@ class NN(object):
         predictions = self.forward(x, training_mode=False)
         loss = self.loss(predictions, y)
         print("{} loss : {}".format(mode, loss))
-        accuracy = self.accuracty(predictions, y)
+        accuracy = self.accuracy(predictions, y)
         print("{} accuracy : {}".format(mode, accuracy))
 
     def test(self, test_set):
