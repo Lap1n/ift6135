@@ -74,9 +74,12 @@ class NN(object):
     @staticmethod
     def loss(prediction, target, epsilon=1e-12):
         # TODO: use the cross entropy from scipy?
-        # prediction = np.clip(prediction, epsilon, 1. - epsilon)
+        prediction = np.clip(prediction, epsilon, 1. - epsilon)
         # return -np.sum(np.sum(np.multiply(np.log(prediction), np.log(target)), axis=0)) / prediction.shape[0]
-        return entropy(target) + entropy(target, prediction)
+        loss_sum = 0
+        for i in range(len(prediction)):
+            loss_sum += entropy(target[i]) + entropy(target[i], prediction[i])
+        return loss_sum
 
     @staticmethod
     def softmax(input):
