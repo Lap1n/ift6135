@@ -76,9 +76,7 @@ class NN(object):
 
     @staticmethod
     def loss(prediction, target, epsilon=1e-12):
-        # TODO: use the cross entropy from scipy?
         prediction = np.clip(prediction, epsilon, 1. - epsilon)
-        # return -np.sum(np.sum(np.multiply(np.log(prediction), np.log(target)), axis=0)) / prediction.shape[0]
         loss_sum = 0
         for i in range(len(prediction)):
             loss_sum += entropy(target[i]) + entropy(target[i], prediction[i])
@@ -113,17 +111,6 @@ class NN(object):
 
         dl_w_cache = [dl_dw1, dl_dw2, dl_dw3]
 
-        # delta_w_cache = []
-        # d_loss_softmax = predictiction - labels
-        # d_loss_weight2 = np.multiply(d_loss_softmax, self.activation_output_cache[1])
-        # delta_w_cache.append(d_loss_weight2)
-        # d_loss_activation1 = np.multiply(d_loss_softmax, self.weights[-1])
-        #
-        # # second layer
-        # d_activation1_h1 = self.derivative_relu(self.h_cache[0])
-        # d_loss_h1 = np.multiply(d_loss_activation1, d_activation1_h1)
-        # d_loss_w1 = np.multiply(d_loss_h1, self.x_cache[0])
-        # delta_w_cache.append(d_loss_w1)
         self.reset_caches()
         return dl_w_cache
 
@@ -147,7 +134,6 @@ class NN(object):
                 sample_y = y[i:i + self.mini_batch_size]
                 sample_y = self.convert_label_to_one_hot(sample_y)
                 probabilities = self.forward(sample_x)
-                # prediction = np.argmax(probabilities, axis=1)
                 loss = self.loss(probabilities, sample_y)
                 print("Train loss : {}".format(loss))
 
