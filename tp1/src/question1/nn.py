@@ -10,10 +10,11 @@ OUTPUT = 10
 
 class NN(object):
     def __init__(self, input_dim=784, output_dim=10, hidden_dims=(1024, 2048), n_hidden=2, learning_rate=0.001,
-                 mini_batch_size=100,
+                 mini_batch_size=100, num_epoch=10,
                  mode='train',
                  datapath=None,
                  model_path=None):
+        self.num_epoch = num_epoch
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.learning_rate = learning_rate
@@ -26,7 +27,6 @@ class NN(object):
         self.weights = []
         self.activation_output_cache = []
         self.h_cache = []
-        self.x_cache = []
 
     def initialize_weights(self, type="normal"):
         self.weights = []
@@ -56,8 +56,8 @@ class NN(object):
 
     def forward(self, input):
         x = input
+        self.activation_output_cache.append(x)
         for i in range(len(self.weights) - 1):
-            self.x_cache.append(x)
             weight = self.weights[i]
             linear_output = x @ weight.transpose()
             self.h_cache.append(linear_output)
@@ -83,41 +83,71 @@ class NN(object):
         return softmax(input, axis=1)
 
     def backward(self, predictiction, labels):
-        # first layer
-        delta_w_cache = []
-        d_loss_softmax = predictiction - labels
-        d_loss_weight2 = np.multiply(d_loss_softmax, self.activation_output_cache[1])
-        delta_w_cache.append(d_loss_weight2)
-        d_loss_activation1 = np.multiply(d_loss_softmax, self.weights[-1])
+        # # last layer
+        # dl_dh3 = dl_ds * ds_dh3
+        dl_dh3 = predictiction - labels
+        # dl_dw3 = dl_dh3 * dh3_dw3 =   dl_dh3 * a2
+        dl_dw3 = dl_dh3.transpose() @ self.activation_output_cache[2]
+        # dl_da2 =  dl_dh3 * dh3_da2
+        dl_da2 = dl_dh3 @ self.weights[2]
 
-        # second layer
-        d_activation1_h1 = np.empty(self.h_cache[0].shape)
-        d_activation1_h1[self.h_cache[0] <= 0] = 0
-        d_loss_h1 = np.multiply(d_loss_activation1, d_activation1_h1)
-        d_loss_w1 = np.multiply(d_loss_h1, self.x_cache[0])
-        delta_w_cache.append(d_loss_w1)
+        # # second hidden layer
+        # dl_dh2 = dl_da2 * da2_dh2
+        dl_dh2 = dl_da2 * self.derivative_relu(self.h_cache[1])
+        # dl_dw2 = dl_dh2 * da2_dw2
+        dl_dw2 = dl_dh2.transpose() @ self.activation_output_cache[1]
+        # dl_da1 = dl_dh2 * dh2_da1
+        dl_da1 = dl_dh2 @ self.weights[1]
 
-        return delta_w_cache
+        # # first hidden layer
+        # dl_dh1 = dl_da1 * da1_dh1
+        dl_dh1 = dl_da1 * self.derivative_relu(self.h_cache[0])
+        # dl_dw1 = dl_dh1 * dh2_dw1
+        dl_dw1 = dl_dh1.transpose() @ self.activation_output_cache[0]
+
+        dl_w_cache = [dl_dw1, dl_dw2, dl_dw3]
+
+        # delta_w_cache = []
+        # d_loss_softmax = predictiction - labels
+        # d_loss_weight2 = np.multiply(d_loss_softmax, self.activation_output_cache[1])
+        # delta_w_cache.append(d_loss_weight2)
+        # d_loss_activation1 = np.multiply(d_loss_softmax, self.weights[-1])
+        #
+        # # second layer
+        # d_activation1_h1 = self.derivative_relu(self.h_cache[0])
+        # d_loss_h1 = np.multiply(d_loss_activation1, d_activation1_h1)
+        # d_loss_w1 = np.multiply(d_loss_h1, self.x_cache[0])
+        # delta_w_cache.append(d_loss_w1)
+
+        return dl_w_cache
 
     def update(self, grads):
         for i in range(len(grads)):
-            avg_grads = np.mean(grads[i], axis=1)
+            # TODO: NOT SURE IF I CAN DO THAT IF i WANT THE AVG
+            avg_grads = grads[i] / self.mini_batch_size
             self.weights[i] = self.weights[i] - self.learning_rate * avg_grads
 
     def train(self, train_set, validation_set):
         x = train_set[0]
         y = train_set[1]
+        for epoch_idx in range(self.num_epoch):
+            for i in range(0, len(x), self.mini_batch_size):
+                sample_x = x[i:i + self.mini_batch_size]
+                sample_y = y[i:i + self.mini_batch_size]
+                sample_y = self.convert_label_to_one_hot(sample_y)
+                probabilities = self.forward(sample_x)
+                # prediction = np.argmax(probabilities, axis=1)
+                loss = self.loss(probabilities, sample_y)
+                print("Loss : {}".format(loss))
 
-        for i in range(0, len(x), self.mini_batch_size):
-            sample_x = x[i:i + self.mini_batch_size]
-            sample_y = y[i:i + self.mini_batch_size]
-            probabilities = self.forward(sample_x)
-            prediction = np.argmax(probabilities, axis=1)
-            loss = self.loss(prediction, sample_y)
-            print("Loss : {}".format(loss))
+                grads = self.backward(probabilities, sample_y)
+                self.update(grads)
+            self.test(validation_set)
 
-            grads = self.backward(prediction, sample_y)
-            self.update(grads)
+    def convert_label_to_one_hot(self, labels):
+        y_onehots = np.zeros((labels.shape[0], 10))
+        y_onehots[np.arange(labels.shape[0]), labels] = 1
+        return y_onehots
 
     @staticmethod
     def accuracty(pred, y):
@@ -137,3 +167,8 @@ class NN(object):
         print("Loss : {}".format(loss))
         accuracy = self.accuracty(predictions, y)
         print("Accuracy : {}".format(accuracy))
+
+    def derivative_relu(self, x):
+        derivative = np.empty(x.shape)
+        derivative[x <= 0] = 0
+        return derivative
