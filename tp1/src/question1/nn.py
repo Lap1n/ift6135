@@ -4,8 +4,6 @@ import numpy as np
 from scipy.special import softmax
 from scipy.stats import entropy
 
-OUTPUT = 10
-
 
 class NN(object):
     def __init__(self, input_dim=784, output_dim=10, hidden_dims=(1024, 2048), n_hidden=2, learning_rate=0.001,
