@@ -1,16 +1,15 @@
 import math
 
 import numpy as np
-import scipy
 from scipy.special import softmax
-from scipy.stats import entropy, stats
+from scipy.stats import entropy
 
 OUTPUT = 10
 
 
 class NN(object):
     def __init__(self, input_dim=784, output_dim=10, hidden_dims=(1024, 2048), n_hidden=2, learning_rate=0.001,
-                 mini_batch_size=100, num_epoch=10,
+                 mini_batch_size=1000, num_epoch=10,
                  mode='train',
                  datapath=None,
                  model_path=None):
@@ -54,15 +53,19 @@ class NN(object):
                 input_dim = self.hidden_dims[i]
             self.weights.append(np.random.uniform(-d, d, (self.output_dim, input_dim)))
 
-    def forward(self, input):
+    def forward(self, input, training_mode=True):
         x = input
-        self.activation_output_cache.append(x)
+
+        # TODO: need to find cleaner way to do this
+        if training_mode is True:
+            self.activation_output_cache.append(x)
         for i in range(len(self.weights) - 1):
             weight = self.weights[i]
             linear_output = x @ weight.transpose()
-            self.h_cache.append(linear_output)
             x = self.activation(linear_output)
-            self.activation_output_cache.append(x)
+            if training_mode is True:
+                self.h_cache.append(linear_output)
+                self.activation_output_cache.append(x)
         last_weight_layer = self.weights[-1]
         return self.softmax(x @ last_weight_layer.transpose())
 
@@ -121,8 +124,12 @@ class NN(object):
         # d_loss_h1 = np.multiply(d_loss_activation1, d_activation1_h1)
         # d_loss_w1 = np.multiply(d_loss_h1, self.x_cache[0])
         # delta_w_cache.append(d_loss_w1)
-
+        self.reset_caches()
         return dl_w_cache
+
+    def reset_caches(self):
+        self.h_cache = []
+        self.activation_output_cache = []
 
     def update(self, grads):
         for i in range(len(grads)):
@@ -134,6 +141,7 @@ class NN(object):
         x = train_set[0]
         y = train_set[1]
         for epoch_idx in range(self.num_epoch):
+            print("[Epoch #{}]".format(epoch_idx + 1))
             for i in range(0, len(x), self.mini_batch_size):
                 sample_x = x[i:i + self.mini_batch_size]
                 sample_y = y[i:i + self.mini_batch_size]
@@ -141,13 +149,14 @@ class NN(object):
                 probabilities = self.forward(sample_x)
                 # prediction = np.argmax(probabilities, axis=1)
                 loss = self.loss(probabilities, sample_y)
-                print("Loss : {}".format(loss))
+                print("Train loss : {}".format(loss))
 
                 grads = self.backward(probabilities, sample_y)
                 self.update(grads)
             self.test(validation_set)
 
-    def convert_label_to_one_hot(self, labels):
+    @staticmethod
+    def convert_label_to_one_hot(labels):
         y_onehots = np.zeros((labels.shape[0], 10))
         y_onehots[np.arange(labels.shape[0]), labels] = 1
         return y_onehots
@@ -158,20 +167,28 @@ class NN(object):
         y = np.argmax(y, axis=1)
         total_score = 0
         for i in range(len(y_pred)):
-            if y_pred == y:
+            if y_pred[i] == y[i]:
                 total_score += 1
         return total_score / len(y_pred) * 100
 
-    def test(self, test_set):
-        x = test_set[0]
-        y = test_set[1]
-        predictions = self.forward(x)
+    def evaluate(self, dataset, mode="Valid"):
+        x = dataset[0]
+        y = dataset[1]
+        y = self.convert_label_to_one_hot(y)
+        predictions = self.forward(x, training_mode=False)
         loss = self.loss(predictions, y)
-        print("Loss : {}".format(loss))
+        print("{} loss : {}".format(mode, loss))
         accuracy = self.accuracty(predictions, y)
-        print("Accuracy : {}".format(accuracy))
+        print("{} accuracy : {}".format(mode, accuracy))
 
-    def derivative_relu(self, x):
+    def test(self, test_set):
+        self.evaluate(test_set, mode="Test")
+
+    def validate(self, valid_set):
+        self.evaluate(valid_set, mode="Valid")
+
+    @staticmethod
+    def derivative_relu(x):
         derivative = np.empty(x.shape)
         derivative[x <= 0] = 0
         derivative[x > 0] = 1
