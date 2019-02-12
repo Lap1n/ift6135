@@ -1,5 +1,6 @@
 import math
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import softmax
 from scipy.stats import entropy
@@ -24,6 +25,10 @@ class NN(object):
         self.weights = []
         self.activation_output_cache = []
         self.h_cache = []
+        self.train_losses = []    # Keep track of the loss of each epoch on train set
+        self.train_accuracies = []
+        self.valid_losses = []    # Keep track of the loss of each epoch on valid set
+        self.valid_accuracies = []
 
     def initialize_weights(self, type="normal"):
         self.weights = []
@@ -44,11 +49,12 @@ class NN(object):
             self.weights.append(np.random.normal(0, 1, (self.output_dim, input_dim)))
 
         elif type == "glorot":
-            d = math.sqrt(6 / (self.hidden_dims[-2] + self.hidden_dims[-1]))
             for i in range(self.n_hidden):
                 shape = (self.hidden_dims[i], input_dim)
+                d = math.sqrt(6 / (input_dim + self.hidden_dims[i]))
                 self.weights.append(np.random.uniform(-d, d, shape))
                 input_dim = self.hidden_dims[i]
+            d = math.sqrt(6 / (input_dim + self.output_dim))
             self.weights.append(np.random.uniform(-d, d, (self.output_dim, input_dim)))
 
     def forward(self, input, training_mode=True):
@@ -57,8 +63,7 @@ class NN(object):
         # TODO: need to find cleaner way to do this
         if training_mode is True:
             self.activation_output_cache.append(x)
-        for i in range(len(self.weights) - 1):
-            weight = self.weights[i]
+        for weight in self.weights[:-1]:
             linear_output = x @ weight.transpose()
             x = self.activation(linear_output)
             if training_mode is True:
@@ -78,16 +83,18 @@ class NN(object):
         loss_sum = 0
         for i in range(len(prediction)):
             loss_sum += entropy(target[i]) + entropy(target[i], prediction[i])
-        return loss_sum
+        # We want the average of the loss for each sample
+        loss = loss_sum / prediction.shape[0]
+        return loss
 
     @staticmethod
     def softmax(input):
         return softmax(input, axis=1)
 
-    def backward(self, predictiction, labels):
+    def backward(self, prediction, labels):
         # # last layer
         # dl_dh3 = dl_ds * ds_dh3
-        dl_dh3 = predictiction - labels
+        dl_dh3 = prediction - labels
         # dl_dw3 = dl_dh3 * dh3_dw3 =   dl_dh3 * a2
         dl_dw3 = dl_dh3.transpose() @ self.activation_output_cache[2]
         # dl_da2 =  dl_dh3 * dh3_da2
@@ -133,11 +140,18 @@ class NN(object):
                 sample_y = self.convert_label_to_one_hot(sample_y)
                 probabilities = self.forward(sample_x)
                 loss = self.loss(probabilities, sample_y)
-                print("Train loss : {}".format(loss))
+                #print("Batch #{} train loss : {}".format(int(i / self.mini_batch_size), loss))
 
                 grads = self.backward(probabilities, sample_y)
                 self.update(grads)
-            self.test(validation_set)
+
+            # Keep track of the loss for each epoch
+            train_loss, train_accuracy = self.evaluate(train_set, mode="Train")
+            self.train_losses.append(train_loss)
+            self.train_accuracies.append(train_accuracy)
+            valid_loss, valid_accuracy = self.validate(validation_set)
+            self.valid_losses.append(valid_loss)
+            self.valid_accuracies.append(valid_accuracy)
 
     @staticmethod
     def convert_label_to_one_hot(labels):
@@ -164,12 +178,13 @@ class NN(object):
         print("{} loss : {}".format(mode, loss))
         accuracy = self.accuracy(predictions, y)
         print("{} accuracy : {}".format(mode, accuracy))
+        return loss, accuracy
 
     def test(self, test_set):
-        self.evaluate(test_set, mode="Test")
+        return self.evaluate(test_set, mode="Test")
 
     def validate(self, valid_set):
-        self.evaluate(valid_set, mode="Valid")
+        return self.evaluate(valid_set, mode="Valid")
 
     @staticmethod
     def derivative_relu(x):
@@ -177,3 +192,18 @@ class NN(object):
         derivative[x <= 0] = 0
         derivative[x > 0] = 1
         return derivative
+
+    def plot_results(self):
+        plt.plot(self.train_losses, label="Train")
+        plt.plot(self.valid_losses, label="Valid")
+        plt.title("Loss on the training and validation set at each epoch")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.show()
+
+        plt.plot(self.train_accuracies)
+        plt.plot(self.valid_accuracies)
+        plt.title("Accuracy on the training and validation set at each epoch")
+        plt.xlabel("Epoch")
+        plt.ylabel("Accuracy [%]")
+        plt.show()
