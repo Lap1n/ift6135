@@ -193,17 +193,21 @@ class NN(object):
         derivative[x > 0] = 1
         return derivative
 
-    def plot_results(self):
+    def save_results(self, path):
+        # Create results directory if it doesn't exist
+        import pathlib
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
         plt.plot(self.train_losses, label="Train")
         plt.plot(self.valid_losses, label="Valid")
         plt.title("Loss on the training and validation set at each epoch")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.show()
+        plt.savefig(path + "loss.png")
 
         plt.plot(self.train_accuracies)
         plt.plot(self.valid_accuracies)
         plt.title("Accuracy on the training and validation set at each epoch")
         plt.xlabel("Epoch")
         plt.ylabel("Accuracy [%]")
-        plt.show()
+        plt.savefig(path + "accuracy.png")

@@ -13,6 +13,22 @@ def main():
     nn.train(train, valid)
     nn.test(test)
 
+def compare_inits():
+    inits = ["zero", "normal", "glorot"]
+
+    dataset = get_dataset()
+    train = dataset[0]
+    valid = dataset[1]
+    test = dataset[2]
+
+    for init in inits:
+        print("Training with {} initialisation".format(init))
+        nn = NN()
+        nn.initialize_weights(init)
+
+        nn.train(train, valid)
+        nn.test(test)
+        nn.save_results("results/{}/".format(init))
 
 def grid_search():
     from itertools import product
@@ -51,4 +67,5 @@ def grid_search():
 
 if __name__ == "__main__":
     #main()
-    grid_search()
+    #grid_search()
+    compare_inits()
