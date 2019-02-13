@@ -14,7 +14,7 @@ def outputSize(in_size, kernel_size, stride, padding):
 
 def init_weights(m):
     if type(m) == torch.nn.Linear:
-        torch.nn.init.xavier_uniform(m.weight)
+        torch.nn.init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0.01)
 
 class CustomVGG(torch.nn.Module):
@@ -25,43 +25,34 @@ class CustomVGG(torch.nn.Module):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         # input channels=3, output channels = 18
-        self.layers = torch.nn.Sequential(
-                torch.nn.Conv2d(3, 18, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                #torch.nn.MaxPool2d(kernel_size=2, stride=2),
-                torch.nn.Conv2d(18, 32, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                torch.nn.MaxPool2d(kernel_size=2, stride=2),
-                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                torch.nn.Conv2d(64, 64, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                torch.nn.MaxPool2d(kernel_size=2, stride=2),
-                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                torch.nn.Conv2d(128, 128, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                #torch.nn.MaxPool2d(kernel_size=2, stride=2),
-                torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                torch.nn.Conv2d(256, 256, kernel_size=3, padding=1),
-                torch.nn.ReLU(True),
-                torch.nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer1 = torch.nn.Sequential(
+                torch.nn.Conv2d(3, 18, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(18, 32, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
         
+        self.layer2 = torch.nn.Sequential(
+                torch.nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+        
+        self.layer3 = torch.nn.Sequential(
+                torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+        
+  
         # Classifier -- fully connected part
         self.classifier = torch.nn.Sequential(
-                torch.nn.Linear(256*8*8, 2048),
+                torch.nn.Linear(128*8*8, 1024),
                 torch.nn.ReLU(True),
-                torch.nn.Linear(2048, 256),
+                torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
-                torch.nn.Linear(256,2))
-        
-        
-        
+                torch.nn.Linear(100,2)).to(self.device)
+           
     def forward(self, x):
-        x = self.layers(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
         
-        x = x.view(-1, 256*8*8)
+        x = x.view(-1, 128*8*8)
         x = self.classifier(x)
         
         return x

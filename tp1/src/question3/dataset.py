@@ -122,12 +122,12 @@ class TestDataset(Dataset):
         return len([name for name in os.listdir(self.img_dir)])
         
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx) + ".jpg")
+        img_name = os.path.join(self.img_dir, str(idx+1) + ".jpg")
         image = io.imread(img_name)
         
         # Find a random image that is not empty
         while (image.shape != (64,64,3)):
-            img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Dog.jpg")
+            img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".jpg")
             image = io.imread(img_name)
         
         if (self.transform is not None):

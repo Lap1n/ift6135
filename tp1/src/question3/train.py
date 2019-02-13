@@ -40,9 +40,9 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
 
         # Reset these variable at the beginning of each epoch
         start = time.time() 
-        print_every = n_batches
         total_train_loss=0
         total_train_error = 0 # classification error
+        print_every  = int(len(train_loader)/100)
         
         # put the model into training mode
         model.train()
@@ -53,15 +53,12 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             # Wrap them in a Variable object
             inputs = Variable(inputs).to(device)
             labels = Variable(labels).to(device)
-
-            print(labels)
             
             # Set the parameter gradints to zero
             optimizer.zero_grad()
             
             # Forward pass, backward pass, optimize
             outputs = model(inputs)
-            print(outputs)
             losses = loss(outputs, labels)
             losses.backward()
             optimizer.step()
@@ -100,11 +97,6 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             
                 # Classification error
                 val_error = getClassificationError(val_outputs, labels)
-                print("Debug -- Validation error -- output shape {}, labels shape {}".format(val_outputs.shape, labels.shape))
-                print("val_outputs : ")
-                print(val_outputs)
-                print("labels")
-                print(labels)
                 print("Validation classification error : {}".format(val_error))
                 total_val_error += val_error
             
