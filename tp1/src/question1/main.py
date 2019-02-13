@@ -1,5 +1,7 @@
 from get_dataset import get_dataset
 from nn import NN
+from itertools import product
+
 
 def main():
     nn = NN()
@@ -12,6 +14,7 @@ def main():
 
     nn.train(train, valid)
     nn.test(test)
+
 
 def compare_inits():
     inits = ["zero", "normal", "glorot"]
@@ -30,8 +33,8 @@ def compare_inits():
         nn.test(test)
         nn.save_results("results/{}/".format(init))
 
+
 def grid_search():
-    from itertools import product
 
     hidden_dims = [(1024, 512), (512, 1024), (2048, 1024), (1024, 2048)]
     learning_rates = [0.1, 0.01, 0.001]
@@ -65,7 +68,8 @@ def grid_search():
 
     print(results)
 
+
 if __name__ == "__main__":
-    #main()
-    #grid_search()
+    # main()
+    # grid_search()
     compare_inits()

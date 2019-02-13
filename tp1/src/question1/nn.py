@@ -1,4 +1,5 @@
 import math
+import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,9 +26,9 @@ class NN(object):
         self.weights = []
         self.activation_output_cache = []
         self.h_cache = []
-        self.train_losses = []    # Keep track of the loss of each epoch on train set
+        self.train_losses = []  # Keep track of the loss of each epoch on train set
         self.train_accuracies = []
-        self.valid_losses = []    # Keep track of the loss of each epoch on valid set
+        self.valid_losses = []  # Keep track of the loss of each epoch on valid set
         self.valid_accuracies = []
 
     def initialize_weights(self, type="normal"):
@@ -140,7 +141,7 @@ class NN(object):
                 sample_y = self.convert_label_to_one_hot(sample_y)
                 probabilities = self.forward(sample_x)
                 loss = self.loss(probabilities, sample_y)
-                #print("Batch #{} train loss : {}".format(int(i / self.mini_batch_size), loss))
+                # print("Batch #{} train loss : {}".format(int(i / self.mini_batch_size), loss))
 
                 grads = self.backward(probabilities, sample_y)
                 self.update(grads)
@@ -195,7 +196,6 @@ class NN(object):
 
     def save_results(self, path):
         # Create results directory if it doesn't exist
-        import pathlib
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
         plt.plot(self.train_losses, label="Train")
