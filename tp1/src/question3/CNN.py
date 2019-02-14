@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 from torch.utils.data.sampler import SubsetRandomSampler
+import PIL
 
 import dataset as ds
 from train import train
@@ -20,10 +21,10 @@ def init_weights(m):
 class SmallVGG(torch.nn.Module):
     def __init__(self):
         super(SmallVGG, self).__init__()
-        
+
         # Device (cpu or gpu)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        
+
         # input channels=3, output channels = 18
         self.layer1 = torch.nn.Sequential(
                 torch.nn.Conv2d(3, 18, kernel_size=3, stride=1, padding=1),
@@ -31,18 +32,18 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.Conv2d(18, 64, kernel_size=3, stride=1, padding=1),
                 torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
+
         self.layer2 = torch.nn.Sequential(
                 torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
                 torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
+
         self.layer3 = torch.nn.Sequential(
                 torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
                 torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
-  
+
+
         # Classifier -- fully connected part
         self.classifier = torch.nn.Sequential(
                 torch.nn.Linear(256*8*8, 1024),
@@ -50,38 +51,38 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
                 torch.nn.Linear(100,2)).to(self.device)
-           
+
     def forward(self, x):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        
+
         x = x.view(-1, 256*8*8)
         x = self.classifier(x)
-        
+
         return x
 class BigVGG(torch.nn.Module):
     def __init__(self):
         super(BigVGG, self).__init__()
-        
+
         # Device (cpu or gpu)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        
+
         # input channels=3, output channels = 18
         self.layer1 = torch.nn.Sequential(
                 torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
                 torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
+
         self.layer2 = torch.nn.Sequential(
                 torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
+
         self.layer3 = torch.nn.Sequential(
                 torch.nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
-  
+
+
         # Classifier -- fully connected part
         self.classifier = torch.nn.Sequential(
                 torch.nn.Linear(512*8*8, 2048),
@@ -89,25 +90,25 @@ class BigVGG(torch.nn.Module):
                 torch.nn.Linear(2048, 200),
                 torch.nn.ReLU(True),
                 torch.nn.Linear(200,2)).to(self.device)
-           
+
     def forward(self, x):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        
+
         x = x.view(-1, 512*8*8)
         x = self.classifier(x)
-        
+
         return x
 
 class ConvNet2(torch.nn.Module):
-    
+
     def __init__(self):
         super(ConvNet2, self).__init__()
-        
+
         # Device (cpu or gpu)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        
+
         # input channels=3, output channels = 18
         self.conv1 = torch.nn.Conv2d(3, 18, kernel_size=3, stride=1, padding=1).to(self.device)
         self.conv2 = torch.nn.Conv2d(18, 18, kernel_size=3, stride=1, padding=1).to(self.device)
@@ -115,80 +116,88 @@ class ConvNet2(torch.nn.Module):
         self.conv4 = torch.nn.Conv2d(18, 18, kernel_size=3, stride=1, padding=1).to(self.device)
         self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0).to(self.device)
         self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0).to(self.device)
-        
+
         # fully connected from input to hidden layer
         self.fc1 = torch.nn.Linear(18*16*16, 64).to(self.device)
         self.fc2 = torch.nn.Linear(64,18).to(self.device)
-        
+
         # fully connected from hidden layer to output : 2 classes
         self.fc3 = torch.nn.Linear(18,2).to(self.device)
-        
-        
+
+
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = self.pool1(x)
-        
+
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
         x = self.pool2(x)
-        
+
         x = x.view(-1, 18*16*16)
-        
+
         # Computes the activation of the first fully connected layer
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        
-        return x    
+
+        return x
 
 class BaseCNN(torch.nn.Module):
-    
+
     def __init__(self):
         super(BaseCNN, self).__init__()
-        
+
         # Device (cpu or gpu)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        
+
         # input channels=3, output channels = 18
         self.conv1 = torch.nn.Conv2d(3, 18, kernel_size=3, stride=1, padding=1)
         self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        
+
         # fully connected from input to hidden layer
         self.fc1 = torch.nn.Linear(18*32*32, 64)
-        
+
         # fully connected from hidden layer to output : 2 classes
         self.fc2 = torch.nn.Linear(64,2)
-        
+
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = self.pool(x)
-        
+
         # Reshape data to input to the input layer of the neural net
         # Size changes from (18,32,32) to (1, 18*32*32)
         x = x.view(-1, 18*32*32)
-        
+
         # Computes the activation of the first fully connected layer
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        
+
         return x
 
-if __name__ == '__main__':  
-    
-    # random seed for reproducible results 
+if __name__ == '__main__':
+
+    # random seed for reproducible results
     seed = 42
     np.random.seed(seed)
     torch.manual_seed(seed)
-    
+
     # Create ToTensor and Normalize base transforms
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))])
+
+    # Create Data augmentation transforms
+    augmentation = transforms.Compose([transforms.ToPILImage(),
+                                        transforms.Resize(64,64),
+                                        transforms.RandomHorizontalFlip(),
+                                        transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
+                                        transforms.ColorJitter(hue=.05, saturation=.05)])
+
     img_directory = "trainset/"
-    dataset = ds.CatDogDataset(img_directory, transform=transform)
-    
+    dataset = ds.CatDogDataset(img_directory, transform=transform, augment=augmentation)
+
     classes = ('cat', 'dog')
-    
+
     train_size = int(0.8 * len(dataset))
     valid_size = len(dataset) - train_size
 
@@ -200,21 +209,24 @@ if __name__ == '__main__':
     # Create Data loaders
     BATCH_SIZE = 1
     # TODO add num_workers
-    train_loader = torch.utils.data.DataLoader(train_dataset, 
+    train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=BATCH_SIZE,
                                                shuffle=True, num_workers=2)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, 
+    valid_loader = torch.utils.data.DataLoader(valid_dataset,
                                                batch_size=BATCH_SIZE,
                                                shuffle=True, num_workers=2)
 
     print("Debug -- CNN.py --  valid_loader shape : {}".format(len(valid_loader)))
-    
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Working on device : {}".format(device))
+
     
-    baseCNN = SmallVGG().to(device)
-    baseCNN.apply(init_weights)
-    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=8, 
+    baseCNN = SmallVGG()
+    baseCNN.load_state_dict(torch.load("models/VGG_small_aug.pt"))
+    baseCNN.to(device)
+    #baseCNN.apply(init_weights)
+    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=5,
             learning_rate=0.001)
-    
-    torch.save(baseCNN.state_dict(), "models/VGG_small.pt")
+
+    torch.save(baseCNN.state_dict(), "models/VGG_small_aug2.pt")

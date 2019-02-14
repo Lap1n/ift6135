@@ -3,18 +3,19 @@ import os
 import numpy as np
 from skimage import io
 from torch.utils.data import Dataset
-
+import PIL
 
 class CatDataset(Dataset):
     """ Cat dataset"""
     
-    def __init__(self, img_dir, transform=None):
+    def __init__(self, img_dir, transform=None, augment=None):
         """
         Args:
             img_dir (string) : Directory with the cat images.
         """
         self.img_dir = img_dir
         self.transform = transform
+        self.augment = augment
         
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
@@ -29,8 +30,12 @@ class CatDataset(Dataset):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Cat.jpg")
             image = io.imread(img_name)
         
+        if (self.augment):
+            image = self.augment(image)
+
         if (self.transform):
             image = self.transform(image)
+
         sample = (image, 0)
         return sample
         
@@ -38,13 +43,14 @@ class CatDataset(Dataset):
 class DogDataset(Dataset):
     """ Dog dataset"""
     
-    def __init__(self, img_dir, transform=None):
+    def __init__(self, img_dir, transform=None, augment=None):
         """
         Args:
             img_dir (string) : Directory with the dog images 
         """
         self.img_dir = img_dir
         self.transform = transform
+        self.augment = augment
         
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
@@ -58,8 +64,12 @@ class DogDataset(Dataset):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Dog.jpg")
             image = io.imread(img_name)
         
-        if (self.transform is not None):
+        if (self.augment):
+            image = self.augment(image)
+
+        if (self.transform):
             image = self.transform(image)
+
         sample = (image, 1)
     
         return sample
@@ -67,7 +77,7 @@ class DogDataset(Dataset):
     
 class CatDogDataset(Dataset):
     """ Cat and dog combined dataset. Cat images followed by dog images."""
-    def __init__(self, img_dir, transform=None):
+    def __init__(self, img_dir, transform=None, augment=None):
         """
         Args:
             img_dir (string) : Directory with the dog and cat folders 
@@ -75,12 +85,14 @@ class CatDogDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
+        # Data augmentation transforms
+        self.augment = augment
         
         # Create individual cat and dog datasets
         cat_dir = os.path.join(self.img_dir, "Cat/")
         dog_dir = os.path.join(self.img_dir, "Dog/")
-        self.catDataset = CatDataset(cat_dir, self.transform)
-        self.dogDataset = DogDataset(dog_dir, self.transform)
+        self.catDataset = CatDataset(cat_dir, self.transform, self.augment)
+        self.dogDataset = DogDataset(dog_dir, self.transform, self.augment)
         
     def __len__(self):
         return len(self.catDataset + self.dogDataset)
