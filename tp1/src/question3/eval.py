@@ -49,20 +49,23 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE,
                                              shuffle=False)
     model.eval()
-    with open('submissions/submission.csv', 'w+') as csvfile:
+    # newline='' is for Windows fix that adds an extra carriage return at the
+    # end of each line
+    with open('submissions/submission.csv', 'w', newline='') as csvfile:
         print("id,label")
         writer = csv.writer(csvfile,delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        for i,images in enumerate(testloader,0):
+        writer.writerow(["id", "label"])
+        for i,images in enumerate(testloader):
             # Wrap tensors in Variables
             images = Variable(images).to(device)
             
             # Forward pass
             outputs = model(images)
-            
+        
             # Get classification
             pred = torch.argmax(outputs,1)
             result = classes[pred]
-            writer.writerow([i, result])
+            writer.writerow([i+1, result])
             print("{},{}".format(i,result))
     
         
