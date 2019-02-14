@@ -24,8 +24,6 @@ class NN(object):
         self.datapath = datapath
         self.model_path = model_path
         self.weights = []
-        self.activation_output_cache = []
-        self.h_cache = []
         self.train_losses = []  # Keep track of the loss of each epoch on train set
         self.train_accuracies = []
         self.valid_losses = []  # Keep track of the loss of each epoch on valid set
@@ -58,20 +56,20 @@ class NN(object):
             d = math.sqrt(6 / (input_dim + self.output_dim))
             self.weights.append(np.random.uniform(-d, d, (self.output_dim, input_dim)))
 
-    def forward(self, input, training_mode=True):
+    def forward(self, input):
         x = input
-
+        activation_output_cache = []
+        h_cache = []
         # TODO: need to find cleaner way to do this
-        if training_mode is True:
-            self.activation_output_cache.append(x)
+        activation_output_cache.append(x)
         for weight in self.weights[:-1]:
             linear_output = x @ weight.transpose()
             x = self.activation(linear_output)
-            if training_mode is True:
-                self.h_cache.append(linear_output)
-                self.activation_output_cache.append(x)
+            h_cache.append(linear_output)
+            activation_output_cache.append(x)
         last_weight_layer = self.weights[-1]
-        return self.softmax(x @ last_weight_layer.transpose())
+        cache = {"activation_output_cache": activation_output_cache, "h_cache": h_cache}
+        return self.softmax(x @ last_weight_layer.transpose()), cache
 
     @staticmethod
     def activation(input):
@@ -92,37 +90,34 @@ class NN(object):
     def softmax(input):
         return softmax(input, axis=1)
 
-    def backward(self, prediction, labels):
+    def backward(self, cache, prediction, labels):
+        activation_output_cache = cache["activation_output_cache"]
+        h_cache = cache["h_cache"]
         # # last layer
         # dl_dh3 = dl_ds * ds_dh3
         dl_dh3 = prediction - labels
         # dl_dw3 = dl_dh3 * dh3_dw3 =   dl_dh3 * a2
-        dl_dw3 = dl_dh3.transpose() @ self.activation_output_cache[2]
+        dl_dw3 = dl_dh3.transpose() @ activation_output_cache[2]
         # dl_da2 =  dl_dh3 * dh3_da2
         dl_da2 = dl_dh3 @ self.weights[2]
 
         # # second hidden layer
         # dl_dh2 = dl_da2 * da2_dh2
-        dl_dh2 = dl_da2 * self.derivative_relu(self.h_cache[1])
+        dl_dh2 = dl_da2 * self.derivative_relu(h_cache[1])
         # dl_dw2 = dl_dh2 * da2_dw2
-        dl_dw2 = dl_dh2.transpose() @ self.activation_output_cache[1]
+        dl_dw2 = dl_dh2.transpose() @ activation_output_cache[1]
         # dl_da1 = dl_dh2 * dh2_da1
         dl_da1 = dl_dh2 @ self.weights[1]
 
         # # first hidden layer
         # dl_dh1 = dl_da1 * da1_dh1
-        dl_dh1 = dl_da1 * self.derivative_relu(self.h_cache[0])
+        dl_dh1 = dl_da1 * self.derivative_relu(h_cache[0])
         # dl_dw1 = dl_dh1 * dh2_dw1
-        dl_dw1 = dl_dh1.transpose() @ self.activation_output_cache[0]
+        dl_dw1 = dl_dh1.transpose() @ activation_output_cache[0]
 
         dl_w_cache = [dl_dw1, dl_dw2, dl_dw3]
 
-        self.reset_caches()
         return dl_w_cache
-
-    def reset_caches(self):
-        self.h_cache = []
-        self.activation_output_cache = []
 
     def update(self, grads):
         for i in range(len(grads)):
@@ -139,17 +134,17 @@ class NN(object):
                 sample_x = x[i:i + self.mini_batch_size]
                 sample_y = y[i:i + self.mini_batch_size]
                 sample_y = self.convert_label_to_one_hot(sample_y)
-                probabilities = self.forward(sample_x)
-                loss = self.loss(probabilities, sample_y)
+                pred_prob, cache = self.forward(sample_x)
+                loss = self.loss(pred_prob, sample_y)
                 # print("Batch #{} train loss : {}".format(int(i / self.mini_batch_size), loss))
 
-                grads = self.backward(probabilities, sample_y)
+                grads = self.backward(cache, pred_prob, sample_y)
                 self.update(grads)
 
             # Keep track of the loss for each epoch
-            train_loss, train_accuracy = self.evaluate(train_set, mode="Train")
-            self.train_losses.append(train_loss)
-            self.train_accuracies.append(train_accuracy)
+            # train_loss, train_accuracy = self.evaluate(train_set, mode="Train")
+            # self.train_losses.append(train_loss)
+            # self.train_accuracies.append(train_accuracy)
             valid_loss, valid_accuracy = self.validate(validation_set)
             self.valid_losses.append(valid_loss)
             self.valid_accuracies.append(valid_accuracy)
@@ -174,7 +169,7 @@ class NN(object):
         x = dataset[0]
         y = dataset[1]
         y = self.convert_label_to_one_hot(y)
-        predictions = self.forward(x, training_mode=False)
+        predictions, _ = self.forward(x)
         loss = self.loss(predictions, y)
         print("{} loss : {}".format(mode, loss))
         accuracy = self.accuracy(predictions, y)
