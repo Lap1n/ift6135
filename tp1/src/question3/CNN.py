@@ -17,9 +17,9 @@ def init_weights(m):
         torch.nn.init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0.01)
 
-class CustomVGG(torch.nn.Module):
+class SmallVGG(torch.nn.Module):
     def __init__(self):
-        super(CustomVGG, self).__init__()
+        super(SmallVGG, self).__init__()
         
         # Device (cpu or gpu)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -27,21 +27,25 @@ class CustomVGG(torch.nn.Module):
         # input channels=3, output channels = 18
         self.layer1 = torch.nn.Sequential(
                 torch.nn.Conv2d(3, 18, kernel_size=3, stride=1, padding=1),
-                torch.nn.Conv2d(18, 32, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
+                torch.nn.Conv2d(18, 64, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
         
         self.layer2 = torch.nn.Sequential(
-                torch.nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
         
         self.layer3 = torch.nn.Sequential(
-                torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
         
   
         # Classifier -- fully connected part
         self.classifier = torch.nn.Sequential(
-                torch.nn.Linear(128*8*8, 1024),
+                torch.nn.Linear(256*8*8, 1024),
                 torch.nn.ReLU(True),
                 torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
@@ -52,7 +56,46 @@ class CustomVGG(torch.nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         
-        x = x.view(-1, 128*8*8)
+        x = x.view(-1, 256*8*8)
+        x = self.classifier(x)
+        
+        return x
+class BigVGG(torch.nn.Module):
+    def __init__(self):
+        super(BigVGG, self).__init__()
+        
+        # Device (cpu or gpu)
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        
+        # input channels=3, output channels = 18
+        self.layer1 = torch.nn.Sequential(
+                torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+        
+        self.layer2 = torch.nn.Sequential(
+                torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+        
+        self.layer3 = torch.nn.Sequential(
+                torch.nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+        
+  
+        # Classifier -- fully connected part
+        self.classifier = torch.nn.Sequential(
+                torch.nn.Linear(512*8*8, 2048),
+                torch.nn.ReLU(True),
+                torch.nn.Linear(2048, 200),
+                torch.nn.ReLU(True),
+                torch.nn.Linear(200,2)).to(self.device)
+           
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        
+        x = x.view(-1, 512*8*8)
         x = self.classifier(x)
         
         return x
@@ -155,7 +198,7 @@ if __name__ == '__main__':
     print("Validation dataset length : {}".format(len(valid_dataset)))
 
     # Create Data loaders
-    BATCH_SIZE = 64
+    BATCH_SIZE = 1
     # TODO add num_workers
     train_loader = torch.utils.data.DataLoader(train_dataset, 
                                                batch_size=BATCH_SIZE,
@@ -169,9 +212,9 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Working on device : {}".format(device))
     
-    baseCNN = CustomVGG().to(device)
+    baseCNN = SmallVGG().to(device)
     baseCNN.apply(init_weights)
-    train(baseCNN, train_loader, valid_loader, batch_size=32, n_epochs=1, 
+    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=8, 
             learning_rate=0.001)
     
-    torch.save(baseCNN.state_dict(), "models/best_model.pt")
+    torch.save(baseCNN.state_dict(), "models/VGG_small.pt")

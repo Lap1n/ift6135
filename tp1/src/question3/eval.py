@@ -16,14 +16,14 @@ import torch
 
 if __name__ == '__main__': 
     
-    PATH = "models/best_model.pt"
+    PATH = "models/VGG_small.pt"
     use_cuda = torch.cuda.is_available()
     
     # Assuming the model was saved on GPU
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Create instance of the model
-    model = CNN.CustomVGG()
+    model = CNN.SmallVGG()
     
     #load saved model
     # if on cpu
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE,
                                              shuffle=False)
     model.eval()
-    with open('submissions/submission.csv', 'w+') as csvfile:
+    with open('submissions/first_submsssion.csv', 'w+') as csvfile:
         print("id,label")
         writer = csv.writer(csvfile,delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for i,images in enumerate(testloader,0):
