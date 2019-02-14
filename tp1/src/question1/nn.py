@@ -204,6 +204,7 @@ class NN(object):
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.savefig(path + "loss.png")
+        plt.clf()
 
         plt.plot(self.train_accuracies)
         plt.plot(self.valid_accuracies)
@@ -211,3 +212,4 @@ class NN(object):
         plt.xlabel("Epoch")
         plt.ylabel("Accuracy [%]")
         plt.savefig(path + "accuracy.png")
+        plt.clf()
