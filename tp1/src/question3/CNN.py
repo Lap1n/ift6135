@@ -71,15 +71,19 @@ class BigVGG(torch.nn.Module):
         # input channels=3, output channels = 18
         self.layer1 = torch.nn.Sequential(
                 torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
 
         self.layer2 = torch.nn.Sequential(
                 torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
 
         self.layer3 = torch.nn.Sequential(
                 torch.nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
 
 
@@ -193,6 +197,7 @@ if __name__ == '__main__':
                                         transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
                                         transforms.ColorJitter(hue=.05, saturation=.05)])
 
+
     img_directory = "trainset/"
     dataset = ds.CatDogDataset(img_directory, transform=transform, augment=augmentation)
 
@@ -222,11 +227,11 @@ if __name__ == '__main__':
     print("Working on device : {}".format(device))
 
     
-    baseCNN = SmallVGG()
-    baseCNN.load_state_dict(torch.load("models/VGG_small_aug.pt"))
+    baseCNN = BigVGG()
+    #baseCNN.load_state_dict(torch.load("models/VGG_small_aug.pt"))
     baseCNN.to(device)
-    #baseCNN.apply(init_weights)
-    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=5,
+    baseCNN.apply(init_weights)
+    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=20,
             learning_rate=0.001)
 
-    torch.save(baseCNN.state_dict(), "models/VGG_small_aug2.pt")
+    torch.save(baseCNN.state_dict(), "models/VGG_big_aug.pt")
