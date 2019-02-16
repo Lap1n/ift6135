@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -5,7 +7,7 @@ import torch
 
 from dataset import CatDogDataset
 from utils import getDataLoaders, runArgParser
-from utils import createTransforms
+from utils import createTransforms, saveModelDict
 import CNN
 import train
 
@@ -51,6 +53,12 @@ if __name__ == '__main__':
     
     train_loss, train_error, valid_loss, valid_error = output
     
+    print("Losses and errors")
+    print(train_loss)
+    print(train_error)
+    print(valid_loss)
+    print(valid_error)
+
     # Add output to model_dict
     model_dict['train_loss' ] =  train_loss
     model_dict['train_error'] =  train_error
@@ -59,6 +67,10 @@ if __name__ == '__main__':
     
     # Output directory to save figures and model
     outdir = model_dict['outdir']
+
+    # Save model_dict
+    print(model_dict)
+    saveModelDict(model_dict, outdir)
     
     # plot and save figure
     # TODO, do not display if not in desktop environment
@@ -69,7 +81,6 @@ if __name__ == '__main__':
     plt.title("Training and Validation cross entropy loss")
     plt.xlabel("number of epochs")
     plt.ylabel("loss")
-    plt.show()
     plt.savefig(outdir + "loss.png")
     
     # error
@@ -79,7 +90,6 @@ if __name__ == '__main__':
     plt.title("Training and Validation classification error (%)")
     plt.xlabel("number of epochs")
     plt.ylabel("Error")
-    plt.show()
     plt.savefig(outdir + "error.png")
     
     

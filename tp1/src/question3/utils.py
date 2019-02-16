@@ -119,7 +119,7 @@ def runArgParser():
 
 def saveModelDict(model_dict, save_dir, save_name="model_dict.pkl"):
     with open(os.path.join(save_dir, save_name), 'wb') as f:
-        pickle.dumb(model_dict,f, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(model_dict,f, pickle.HIGHEST_PROTOCOL)
 
 def loadModelDict(path):
     with open(path, 'rb') as f:
