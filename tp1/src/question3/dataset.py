@@ -3,7 +3,6 @@ import os
 import numpy as np
 from skimage import io
 from torch.utils.data import Dataset
-import PIL
 
 class CatDataset(Dataset):
     """ Cat dataset"""
@@ -99,7 +98,11 @@ class CatDogDataset(Dataset):
         
     def __getitem__(self, idx):
         # if index is greater than 9998 than get dog, else get cat
-        idx = idx.item()
+        # Fix for tensor issue that i don't understand
+        if (isinstance(idx, int)):
+            pass
+        else:    
+            idx = idx.item()
         dataset_len = self.__len__()
         if (idx < dataset_len):
             if (idx >= len(self.catDataset)):
