@@ -52,7 +52,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
         # put the model into training mode
         model.train()
 
-        for i, data in enumerate(train_loader):
+        for i, data in enumerate(train_loader,0):
             (inputs, labels) = data
             
             # Wrap them in a Variable object
@@ -124,7 +124,4 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
     print("Training finished")
 
     # Plot training and validation loss and error
-    print(train_loss)
-    print(valid_loss)
-    print(train_error)
-    print(valid_error)
+    return (train_loss, train_error, valid_loss, valid_error)
