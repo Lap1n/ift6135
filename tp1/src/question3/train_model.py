@@ -38,6 +38,9 @@ if __name__ == '__main__':
     # Get model
     model = model_dict['model']
     
+    # Output directory to save figures and models
+    outdir = model_dict['outdir']
+    
     # get saved model parameters if there are some
     saved_path = model_dict['saved_path']
     if(saved_path):
@@ -47,7 +50,7 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(saved_path))
     model.to(device)
     model.apply(CNN.init_weights)
-    output = train.train(model, train_loader, valid_loader, batch_size=1, n_epochs=1,learning_rate=0.001)
+    output = train.train(model, train_loader, valid_loader, batch_size=1, n_epochs=1,learning_rate=0.001, outdir=outdir)
     
     train_loss, train_error, valid_loss, valid_error = output
     
@@ -56,9 +59,6 @@ if __name__ == '__main__':
     model_dict['train_error'] =  train_error
     model_dict['valid_loss' ] =  valid_loss
     model_dict['valid_error'] =  valid_error
-    
-    # Output directory to save figures and model
-    outdir = model_dict['outdir']
     
     # plot and save figure
     # TODO, do not display if not in desktop environment
