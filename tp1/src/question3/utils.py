@@ -73,9 +73,11 @@ def runArgParser():
                         type=str)
     parser.add_argument("--outdir", help="Specify the output directory. By default we create a date-time directory in models folder",
                         type=str)
-    parser.add_argument("--batch_size", help="Batch size, defaults to 1", type=int)
+    parser.add_argument("--batch_size", help="Batch size, defaults to 64", type=int)
     parser.add_argument("--n_epoch", help="Number of training epochs. Defaults to 10", type=int)
-    parser.add_argument("--learning_rate", help="Learning rate, defaults to 0.001", type=int)
+    parser.add_argument("--learning_rate", help="Learning rate, defaults to 0.001", type=float)
+    parser.add_argument("--momentum", help="Momentum, defaults to 0.9", type=float)
+    parser.add_argument("--weight_decay", help="L2 norm regularization, defaults to 0.1", type=float)
     parser.add_argument("--show", help="Shows loss and error graphs. Default:False. Automatically saved in output directory",
                       type=bool)
     args = parser.parse_args()
@@ -114,17 +116,29 @@ def runArgParser():
     if (args.batch_size):
         batch_size = args.batch_size
     else:
-        batch_size = 1
+        batch_size = 64
     
     if(args.n_epoch):
         n_epoch = args.n_epoch
     else:
         n_epoch = 10
     
-    if(args.learning_rate):
+    if args.learning_rate:
         learning_rate = args.learning_rate
     else:
         learning_rate = 0.001
+
+    if args.momentum:
+        momentum = args.momentum
+    else:
+        momentum = 0.9
+
+    if args.weight_decay is not None:
+        weight_decay = args.weight_decay
+        print("hello")
+    else:
+        print("salut", args.weight_decay)
+        weight_decay = 0.005
         
     # Save params in dictionary
     model_dict = {'model_name': model_name,
@@ -132,7 +146,9 @@ def runArgParser():
                   'saved_path':saved_path,
                   'batch_size': batch_size,
                   'n_epoch': n_epoch,
-                  'learning_rate':learning_rate}
+                  'learning_rate':learning_rate,
+                  'momentum':momentum,
+                  'weight_decay':weight_decay}
     
     # put everything in config structure   
     return (model, model_dict, show_graph)

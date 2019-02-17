@@ -53,13 +53,15 @@ if __name__ == '__main__':
     
     # Get other parameters      
     batch_size = model_dict['batch_size']
-    n_epochs = model_dict['n_epochs']
-    learning_rate = model_dict['learning_Rate']
+    n_epochs = model_dict['n_epoch']
+    learning_rate = model_dict['learning_rate']
+    momentum = model_dict['momentum']
+    weight_decay = model_dict['weight_decay']
     
     model.to(device)
     model.apply(CNN.init_weights)
     output = train.train(model, train_loader, valid_loader, batch_size=batch_size,
-                         n_epochs=n_epochs,learning_rate=learning_rate, outdir=outdir)
+                         n_epochs=n_epochs,learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, outdir=outdir)
     
     train_loss, train_error, valid_loss, valid_error = output
     

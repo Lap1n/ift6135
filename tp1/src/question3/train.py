@@ -95,7 +95,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
         running_loss = 0.0
         running_error = 0.0
         # Set printing frequency
-        print_every  = int(len(train_loader)/100)
+        print_every  = int(len(train_loader)/10)
         
         # put the model into training mode
         model.train()
@@ -132,7 +132,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             # print every 10th bach of and epoch
             if (i+1) % (print_every + 1) == 0:
                 print("Epoch {}, {:d}% \t avg_train_loss: {:.2f}, classification error {:.2f}%".format(epoch+1, 
-                          int(100 * (i+1) / n_batches), running_loss/print_every, running_error/print_every))
+                          int(100 * (i+1) / n_batches), running_loss/print_every, running_error/print_every*100))
                 
                 # Reset running_loss and running_errors
                 running_loss = 0.0

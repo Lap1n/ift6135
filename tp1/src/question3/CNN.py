@@ -57,8 +57,7 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.ReLU(True),
                 torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
-                torch.nn.Linear(100,2),
-                torch.nn.Sigmoid()).to(self.device)
+                torch.nn.Linear(100,2)).to(self.device)
 
     def forward(self, x):
         x = self.layer1(x)
