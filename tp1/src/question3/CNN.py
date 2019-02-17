@@ -9,14 +9,17 @@ import PIL
 import dataset as ds
 from train import train
 
+
 def outputSize(in_size, kernel_size, stride, padding):
-    output = int((in_size - kernel_size + 2*padding)/stride) + 1
+    output = int((in_size - kernel_size + 2 * padding) / stride) + 1
     return output
+
 
 def init_weights(m):
     if type(m) == torch.nn.Linear:
         torch.nn.init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0.01)
+
 
 class SmallVGG(torch.nn.Module):
     def __init__(self):
@@ -106,6 +109,7 @@ class SmallVGG_5K(torch.nn.Module):
         x = self.classifier(x)
 
         return [x, x1, x2, x3]
+
 class BigVGG(torch.nn.Module):
     def __init__(self):
         super(BigVGG, self).__init__()
@@ -150,6 +154,7 @@ class BigVGG(torch.nn.Module):
 
         return [x, x1, x2, x3]
 
+
 class ConvNet2(torch.nn.Module):
 
     def __init__(self):
@@ -167,12 +172,11 @@ class ConvNet2(torch.nn.Module):
         self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0).to(self.device)
 
         # fully connected from input to hidden layer
-        self.fc1 = torch.nn.Linear(18*16*16, 64).to(self.device)
-        self.fc2 = torch.nn.Linear(64,18).to(self.device)
+        self.fc1 = torch.nn.Linear(18 * 16 * 16, 64).to(self.device)
+        self.fc2 = torch.nn.Linear(64, 18).to(self.device)
 
         # fully connected from hidden layer to output : 2 classes
-        self.fc3 = torch.nn.Linear(18,2).to(self.device)
-
+        self.fc3 = torch.nn.Linear(18, 2).to(self.device)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -183,7 +187,7 @@ class ConvNet2(torch.nn.Module):
         x = F.relu(self.conv4(x))
         x = self.pool2(x)
 
-        x = x.view(-1, 18*16*16)
+        x = x.view(-1, 18 * 16 * 16)
 
         # Computes the activation of the first fully connected layer
         x = F.relu(self.fc1(x))
@@ -205,10 +209,10 @@ class BaseCNN(torch.nn.Module):
         self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
         # fully connected from input to hidden layer
-        self.fc1 = torch.nn.Linear(18*32*32, 64)
+        self.fc1 = torch.nn.Linear(18 * 32 * 32, 64)
 
         # fully connected from hidden layer to output : 2 classes
-        self.fc2 = torch.nn.Linear(64,2)
+        self.fc2 = torch.nn.Linear(64, 2)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -216,7 +220,7 @@ class BaseCNN(torch.nn.Module):
 
         # Reshape data to input to the input layer of the neural net
         # Size changes from (18,32,32) to (1, 18*32*32)
-        x = x.view(-1, 18*32*32)
+        x = x.view(-1, 18 * 32 * 32)
 
         # Computes the activation of the first fully connected layer
         x = F.relu(self.fc1(x))
@@ -224,9 +228,9 @@ class BaseCNN(torch.nn.Module):
 
         return x
 
-if __name__ == '__main__':
 
-    # random seed for reproducible results
+if __name__ == '__main__':
+    # random seed for reproducible results 
     seed = 42
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -271,12 +275,10 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Working on device : {}".format(device))
 
-    
-    baseCNN = BigVGG()
-    #baseCNN.load_state_dict(torch.load("models/VGG_small_aug.pt"))
-    baseCNN.to(device)
+    baseCNN = SmallVGG().to(device)
     baseCNN.apply(init_weights)
-    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=20,
-            learning_rate=0.001)
+    train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=8,
+          learning_rate=0.001)
 
-    torch.save(baseCNN.state_dict(), "models/VGG_big_aug.pt")
+    torch.save(baseCNN.state_dict(), "models/VGG_small.pt")
+

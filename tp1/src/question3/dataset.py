@@ -18,14 +18,13 @@ class CatDataset(Dataset):
         
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
-         
-        
+
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx+1) + ".Cat.jpg")
+        img_name = os.path.join(self.img_dir, str(idx + 1) + ".Cat.jpg")
         image = io.imread(img_name)
-        
+
         # Find a random image that is not empty
-        while (image.shape != (64,64,3)):
+        while (image.shape != (64, 64, 3)):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Cat.jpg")
             image = io.imread(img_name)
         
@@ -37,8 +36,8 @@ class CatDataset(Dataset):
 
         sample = (image, 0)
         return sample
-        
-        
+
+
 class DogDataset(Dataset):
     """ Dog dataset"""
     
@@ -53,13 +52,13 @@ class DogDataset(Dataset):
         
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
-        
+
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx+1) + ".Dog.jpg")
+        img_name = os.path.join(self.img_dir, str(idx + 1) + ".Dog.jpg")
         image = io.imread(img_name)
-        
+
         # Find a random image that is not empty
-        while (image.shape != (64,64,3)):
+        while (image.shape != (64, 64, 3)):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Dog.jpg")
             image = io.imread(img_name)
         
@@ -70,13 +69,14 @@ class DogDataset(Dataset):
             image = self.transform(image)
 
         sample = (image, 1)
-    
+
         return sample
 
-    
+
 class CatDogDataset(Dataset):
     """ Cat and dog combined dataset. Cat images followed by dog images."""
     def __init__(self, img_dir, transform=None, augment=None):
+
         """
         Args:
             img_dir (string) : Directory with the dog and cat folders 
@@ -84,6 +84,7 @@ class CatDogDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
+        
         # Data augmentation transforms
         self.augment = augment
         
@@ -93,9 +94,10 @@ class CatDogDataset(Dataset):
         self.catDataset = CatDataset(cat_dir, self.transform, self.augment)
         self.dogDataset = DogDataset(dog_dir, self.transform, self.augment)
         
+
     def __len__(self):
         return len(self.catDataset + self.dogDataset)
-        
+
     def __getitem__(self, idx):
         # if index is greater than 9998 than get dog, else get cat
         # Fix for tensor issue that i don't understand
@@ -111,17 +113,18 @@ class CatDogDataset(Dataset):
                 sample = self.catDataset[idx]
         else:
             sample = None
-            
+
         return sample
-    
+
     def getCatIdx(self):
         """ Returns the first index of the cat images """
         return 0
-    
+
     def getDogIdx(self):
         """ Returns the first index of the dog images """
         return len(self.catDataset)
-    
+
+
 class TestDataset(Dataset):
     """ Cat and dog test set."""
 
@@ -132,22 +135,20 @@ class TestDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
-        
+
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
-        
+
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx+1) + ".jpg")
+        img_name = os.path.join(self.img_dir, str(idx + 1) + ".jpg")
         image = io.imread(img_name)
-        
+
         # Find a random image that is not empty
-        while (image.shape != (64,64,3)):
+        while (image.shape != (64, 64, 3)):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".jpg")
             image = io.imread(img_name)
-        
+
         if (self.transform is not None):
             image = self.transform(image)
-    
+
         return image
-    
-  
