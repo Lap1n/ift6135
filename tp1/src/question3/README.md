@@ -1,4 +1,7 @@
 # Reproducing trained model
+
+Important : the trainset and testset folders must already exist in the **question3** directory. The trainset folder must directly contain the Cat and Dog folders.
+
 ```bash
 python train_model.py --model SmallVGG --batch_size <batchsize> --n_epoch <nepoch> --learning_rate <lr>
 ```
