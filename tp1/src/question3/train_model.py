@@ -53,8 +53,8 @@ if __name__ == '__main__':
     
     # Get other parameters      
     batch_size = model_dict['batch_size']
-    n_epochs = model_dict['n_epochs']
-    learning_rate = model_dict['learning_Rate']
+    n_epochs = model_dict['n_epoch']
+    learning_rate = model_dict['learning_rate']
     
     model.to(device)
     model.apply(CNN.init_weights)
@@ -104,5 +104,15 @@ if __name__ == '__main__':
     plt.legend()
     plt.savefig(outdir + "error.png")
     
-    
     torch.save(model.state_dict(), outdir + "model.pt")
+    
+    # accuracy
+    plt.figure()
+    plt.plot(np.ones(len(train_error))- np.asarray(train_error), label="Training")
+    plt.plot(np.ones(len(valid_error)) - np.asarray(valid_error), label="Validation")
+    plt.title("Training and Validation classification accuracy (%)")
+    plt.xlabel("number of epochs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.savefig(outdir + "accuracy.png")
+

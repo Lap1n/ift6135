@@ -70,7 +70,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             # if outputs is a list, we have intermediate features (for feat
             # visualization) so the actual output is elem 0 of the list
             if (isinstance(outputs, list)):
-                outputs = outputs[0]
+                outputs = outputs[0] 
             batch_loss = loss(outputs, labels)
             batch_loss.backward()
             optimizer.step()
@@ -113,6 +113,8 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             
                 # Forward pass
                 val_outputs = model(inputs)
+                if (isinstance(val_outputs, list)):
+                    val_outputs = val_outputs[0]
                 val_losses = loss(val_outputs, labels)
                 total_val_loss += val_losses.item()
             

@@ -61,7 +61,7 @@ class SmallVGG(torch.nn.Module):
         x = x3.view(-1, 256*8*8)
         x = self.classifier(x)
 
-        return x, x1, x2, x3
+        return [x, x1, x2, x3]
     
 class BigVGG(torch.nn.Module):
     def __init__(self):
