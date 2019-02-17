@@ -3,6 +3,7 @@ import time
 import torch
 import torch.optim as optim
 from torch.autograd import Variable
+from sklearn.metrics import confusion_matrix
 
 def getClassificationError(outputs, labels):
     # Return the classification error and number of predictions
@@ -65,6 +66,11 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             
             # Forward pass, backward pass, optimize
             outputs = model(inputs)
+            
+            # if outputs is a list, we have intermediate features (for feat
+            # visualization) so the actual output is elem 0 of the list
+            if (isinstance(outputs, list)):
+                outputs = outputs[0]
             batch_loss = loss(outputs, labels)
             batch_loss.backward()
             optimizer.step()

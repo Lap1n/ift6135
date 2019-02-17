@@ -50,17 +50,19 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.ReLU(True),
                 torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
-                torch.nn.Linear(100,2)).to(self.device)
+                torch.nn.Linear(100,2),
+                torch.nn.Sigmoid())).to(self.device)
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        x1 = self.layer1(x)
+        x2 = self.layer2(x1)
+        x3 = self.layer3(x2)
 
-        x = x.view(-1, 256*8*8)
+        x = x3.view(-1, 256*8*8)
         x = self.classifier(x)
 
-        return x
+        return x, x1, x2, x3
+    
 class BigVGG(torch.nn.Module):
     def __init__(self):
         super(BigVGG, self).__init__()
@@ -96,14 +98,14 @@ class BigVGG(torch.nn.Module):
                 torch.nn.Linear(200,2)).to(self.device)
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        x1 = self.layer1(x)
+        x2 = self.layer2(x1)
+        x3 = self.layer3(x2)
 
-        x = x.view(-1, 512*8*8)
+        x = x3.view(-1, 512*8*8)
         x = self.classifier(x)
 
-        return x
+        return [x, x1, x2, x3]
 
 class ConvNet2(torch.nn.Module):
 
