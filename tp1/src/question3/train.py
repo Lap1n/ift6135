@@ -3,6 +3,7 @@ import time
 import torch
 import torch.optim as optim
 from torch.autograd import Variable
+from sklearn.metrics import confusion_matrix
 
 
 def getClassificationError(outputs, labels):
@@ -11,8 +12,8 @@ def getClassificationError(outputs, labels):
     error = torch.sum(torch.abs(labels - pred))
     return (error.item(), len(labels))
 
-
-def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate):
+def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate, outdir=None):
+    
     # Print all of the hyperparameters of the training iteration
     print("====== HYPERPARAMETERS ======")
     print("batch_size= ", batch_size)
@@ -43,6 +44,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
         total_train_loss = 0.0
         total_train_error = 0.0
         nb_train = 0.0
+        early_stop = False
 
         # Running loss and accuracy (just for printing)
         running_loss = 0.0
@@ -53,7 +55,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
         # put the model into training mode
         model.train()
 
-        for i, data in enumerate(train_loader):
+        for i, data in enumerate(train_loader,0):
             (inputs, labels) = data
 
             # Wrap them in a Variable object
@@ -65,6 +67,11 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
 
             # Forward pass, backward pass, optimize
             outputs = model(inputs)
+            
+            # if outputs is a list, we have intermediate features (for feat
+            # visualization) so the actual output is elem 0 of the list
+            if (isinstance(outputs, list)):
+                outputs = outputs[0] 
             batch_loss = loss(outputs, labels)
             batch_loss.backward()
             optimizer.step()
@@ -90,9 +97,10 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
                 running_error = 0.0
 
         # Get train_loss and classification train_error for this epoch
-        train_loss.append(total_train_loss / nb_train)
-        train_error.append(total_train_error / nb_train)
-
+        train_error_percentage = total_train_error/nb_train
+        train_loss.append(total_train_loss/nb_train)
+        train_error.append(train_error_percentage)
+        
         # Do a pass on the validation set
         total_val_loss = 0
         total_val_error = 0
@@ -108,6 +116,8 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
 
                 # Forward pass
                 val_outputs = model(inputs)
+                if (isinstance(val_outputs, list)):
+                    val_outputs = val_outputs[0]
                 val_losses = loss(val_outputs, labels)
                 total_val_loss += val_losses.item()
 
@@ -117,17 +127,20 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
                 nb_val += nb_pred
 
         # Save validation error and loss
-        valid_loss.append(total_val_loss / nb_val)
-        valid_error.append(total_val_error / nb_val)
-
+        val_error_percentage = total_val_error/nb_val
+        valid_loss.append(total_val_loss/nb_val)
+        valid_error.append(val_error_percentage)
+        
         print("Validation loss = {:.2f}".format(total_val_loss / nb_val))
-        print("Total training classification error = {:.2f}".format(total_train_error / nb_train))
-        print("Total validation classification error = {:.2f}".format(total_val_error / nb_val))
-
+        print("Total training classification error = {:.2f}".format(total_train_error/nb_train))
+        print("Total validation classification error = {:.2f}".format(total_val_error/nb_val))
+        
+        # Save model when train error becomes 5% lower than validation error
+        if (not(early_stop) and outdir and (val_error_percentage > (0.05 + train_error_percentage))):
+            torch.save(model.state_dict(), outdir + "model_earlystop.pt")
+            early_stop = True
+    
     print("Training finished")
 
     # Plot training and validation loss and error
-    print(train_loss)
-    print(valid_loss)
-    print(train_error)
-    print(valid_error)
+    return (train_loss, train_error, valid_loss, valid_error)
