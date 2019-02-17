@@ -3,6 +3,7 @@ import time
 import torch
 import torch.optim as optim
 from torch.autograd import Variable
+from sklearn.metrics import confusion_matrix
 
 from torch.optim.optimizer import Optimizer
 
@@ -48,15 +49,13 @@ def getClassificationError(outputs, labels):
     error = torch.sum(torch.abs(labels - pred))
     return (error.item(), len(labels))
 
-def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate, momentum, weight_decay):
+def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate, momentum, weight_decay, outdir):
     
     # Print all of the hyperparameters of the training iteration
     print("====== HYPERPARAMETERS ======")
     print("batch_size= ", batch_size)
     print("epochs= ", n_epochs)
     print("learning_rate= ", learning_rate)
-    print("momentum= ", momentum)
-    print("weight_decay= ", weight_decay)
     
     # Get device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -88,12 +87,13 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
         total_train_loss = 0.0
         total_train_error = 0.0
         nb_train = 0.0
+        early_stop = False
 
         # Running loss and accuracy (just for printing)
         running_loss = 0.0
         running_error = 0.0
         # Set printing frequency
-        print_every  = int(len(train_loader)/10)
+        print_every  = int(len(train_loader)/100)
         
         # put the model into training mode
         model.train()
@@ -110,6 +110,11 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             
             # Forward pass, backward pass, optimize
             outputs = model(inputs)
+
+            # if outputs is a list, we have intermediate features (for feat
+            # visualization) so the actual output is elem 0 of the list
+            if (isinstance(outputs, list)):
+                outputs = outputs[0]
             batch_loss = loss(outputs, labels)
             batch_loss.backward()
             optimizer.step()
@@ -125,15 +130,16 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             # print every 10th bach of and epoch
             if (i+1) % (print_every + 1) == 0:
                 print("Epoch {}, {:d}% \t avg_train_loss: {:.2f}, classification error {:.2f}%".format(epoch+1, 
-                          int(100 * (i+1) / n_batches), running_loss/print_every, running_error/print_every*100))
+                          int(100 * (i+1) / n_batches), running_loss/print_every, running_error/print_every))
                 
                 # Reset running_loss and running_errors
                 running_loss = 0.0
                 running_error = 0.0
         
         # Get train_loss and classification train_error for this epoch
+        train_error_percentage = total_train_error/nb_train
         train_loss.append(total_train_loss/nb_train)
-        train_error.append(total_train_error/nb_train)
+        train_error.append(train_error_percentage)
         
 
         # Do a pass on the validation set
@@ -160,18 +166,20 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
                 nb_val += nb_pred
             
         # Save validation error and loss
+        val_error_percentage = total_val_error/nb_val
         valid_loss.append(total_val_loss/nb_val)
         valid_error.append(total_val_error/nb_val)
         
         print("Validation loss = {:.2f}".format(total_val_loss / nb_val))
         print("Total training classification error = {:.2f}".format(total_train_error/nb_train))
         print("Total validation classification error = {:.2f}".format(total_val_error/nb_val))
-    
+
+        # Save model when train error becomes 5% lower than validation error
+        if (not(early_stop) and outdir and (val_error_percentage > (0.05 + train_error_percentage))):
+            torch.save(model.state_dict(), outdir + "model_earlystop.pt")
+            early_stop = True
+
     print("Training finished")
 
     # Plot training and validation loss and error
-    import numpy as np
-    print("Training loss", np.round(train_loss, 3))
-    print("Validation loss", np.round(valid_loss, 3))
-    print("Training error", np.round(train_error, 3))
-    print("Validation error loss", np.round(valid_error, 3))
+    return (train_loss, train_error, valid_loss, valid_error)
