@@ -116,7 +116,7 @@ def runArgParser():
     if (args.batch_size):
         batch_size = args.batch_size
     else:
-        batch_size = 1
+        batch_size = 8
     
     if(args.n_epoch):
         n_epoch = args.n_epoch
