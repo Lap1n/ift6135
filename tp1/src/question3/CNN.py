@@ -41,7 +41,14 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
                 torch.nn.ReLU(True),
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
-        
+
+        self.layer4 = torch.nn.Sequential(
+            torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(True))
+
+        self.layer5 = torch.nn.Sequential(
+            torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(True))
   
         # Classifier -- fully connected part
         self.classifier = torch.nn.Sequential(
@@ -55,7 +62,11 @@ class SmallVGG(torch.nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        
+
+        x = self.layer4(x) + x
+        x = self.layer5(x) + x
+
+
         x = x.view(-1, 256*8*8)
         x = self.classifier(x)
         
@@ -186,7 +197,10 @@ if __name__ == '__main__':
                                     transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))])
     img_directory = "trainset/"
     dataset = ds.CatDogDataset(img_directory, transform=transform)
-    
+    # datasets = torch.utils.data.random_split(dataset, [1000, dataset.__len__()-1000])
+    # dataset = datasets[0]
+    # dataset = torch.utils.data.Subset(dataset, [i for i in range(1000)])
+
     classes = ('cat', 'dog')
     
     train_size = int(0.8 * len(dataset))
