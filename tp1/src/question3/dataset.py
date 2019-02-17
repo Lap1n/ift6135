@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class CatDataset(Dataset):
     """ Cat dataset"""
-    
+
     def __init__(self, img_dir, transform=None):
         """
         Args:
@@ -15,29 +15,28 @@ class CatDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
-        
+
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
-         
-        
+
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx+1) + ".Cat.jpg")
+        img_name = os.path.join(self.img_dir, str(idx + 1) + ".Cat.jpg")
         image = io.imread(img_name)
-        
+
         # Find a random image that is not empty
-        while (image.shape != (64,64,3)):
+        while (image.shape != (64, 64, 3)):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Cat.jpg")
             image = io.imread(img_name)
-        
+
         if (self.transform):
             image = self.transform(image)
         sample = (image, 0)
         return sample
-        
-        
+
+
 class DogDataset(Dataset):
     """ Dog dataset"""
-    
+
     def __init__(self, img_dir, transform=None):
         """
         Args:
@@ -45,28 +44,29 @@ class DogDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
-        
+
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
-        
+
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx+1) + ".Dog.jpg")
+        img_name = os.path.join(self.img_dir, str(idx + 1) + ".Dog.jpg")
         image = io.imread(img_name)
-        
+
         # Find a random image that is not empty
-        while (image.shape != (64,64,3)):
+        while (image.shape != (64, 64, 3)):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".Dog.jpg")
             image = io.imread(img_name)
-        
+
         if (self.transform is not None):
             image = self.transform(image)
         sample = (image, 1)
-    
+
         return sample
 
-    
+
 class CatDogDataset(Dataset):
     """ Cat and dog combined dataset. Cat images followed by dog images."""
+
     def __init__(self, img_dir, transform=None):
         """
         Args:
@@ -75,16 +75,16 @@ class CatDogDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
-        
+
         # Create individual cat and dog datasets
         cat_dir = os.path.join(self.img_dir, "Cat/")
         dog_dir = os.path.join(self.img_dir, "Dog/")
         self.catDataset = CatDataset(cat_dir, self.transform)
         self.dogDataset = DogDataset(dog_dir, self.transform)
-        
+
     def __len__(self):
         return len(self.catDataset + self.dogDataset)
-        
+
     def __getitem__(self, idx):
         # if index is greater than 9998 than get dog, else get cat
         idx = idx.item()
@@ -96,17 +96,18 @@ class CatDogDataset(Dataset):
                 sample = self.catDataset[idx]
         else:
             sample = None
-            
+
         return sample
-    
+
     def getCatIdx(self):
         """ Returns the first index of the cat images """
         return 0
-    
+
     def getDogIdx(self):
         """ Returns the first index of the dog images """
         return len(self.catDataset)
-    
+
+
 class TestDataset(Dataset):
     """ Cat and dog test set."""
 
@@ -117,22 +118,20 @@ class TestDataset(Dataset):
         """
         self.img_dir = img_dir
         self.transform = transform
-        
+
     def __len__(self):
         return len([name for name in os.listdir(self.img_dir)])
-        
+
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, str(idx+1) + ".jpg")
+        img_name = os.path.join(self.img_dir, str(idx + 1) + ".jpg")
         image = io.imread(img_name)
-        
+
         # Find a random image that is not empty
-        while (image.shape != (64,64,3)):
+        while (image.shape != (64, 64, 3)):
             img_name = os.path.join(self.img_dir, str(np.random.randint(0, len(self))) + ".jpg")
             image = io.imread(img_name)
-        
+
         if (self.transform is not None):
             image = self.transform(image)
-    
+
         return image
-    
-  
