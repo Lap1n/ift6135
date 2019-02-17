@@ -18,9 +18,12 @@ import CNN
 import os
 
 def getFeatureMaps(torch_img, model, save_dir):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.eval()
     with torch.no_grad():
-        outputs = model(torch_img.unsqueeze(0))
+        torch_img = torch_img.unsqueeze(0)
+        torch_img = torch_img.to(device)
+        outputs = model(torch_img)
 
     # depending on the size of outputs, save all feature\activation maps
     print("Debug -- number of layers in model : {} :".format(len(outputs)))
@@ -31,56 +34,13 @@ def getFeatureMaps(torch_img, model, save_dir):
             output = output.squeeze()
             print("Debug -- lenght of features maps for layer {} : {} : ".format(i, output.shape[0]))
             for j,feat in enumerate(output):
-                img = feat.numpy()
+                img = feat.cpu()
+                img = img.numpy()
                 plt.figure()
                 plt.imshow(img)
                 plt.title("Activation map layer {}, feature {}".format(i,j))
-                plt.savefig(os.join(save_dir, "layer{}_feat{}.png".format(i,j)))
+                plt.savefig(os.path.join(save_dir, "layer{}_feat{}.png".format(i,j)))
                         
-    
-def getConfusionMatrix(model, valid_loader, savedir):
-    model.eval()
-    y_prob = None
-    y_true = None
-    with torch.no_grad():
-        for inputs, labels in valid_loader:
-            # Wrap tensors in Variables
-            inputs = Variable(inputs).to(device)
-            labels = Variable(labels).to(device)
-        
-            # Forward pass
-            outputs = model(inputs)
-            
-            # append outputs and labels 
-            if(y_prob is not None):
-                y_prob = np.vstack((y_prob, outputs[0].numpy()))
-                y_true = np.hstack(labels.numpy())
-            else:
-                y_prob = outputs[0].numpy()
-                y_true = labels.numpy()
-            
-            y_pred = np.argmax(y_prob, axis=1)
-            
-    cm = confusion_matrix(y_true, y_pred, [0,1])
-    heatmap = sns.heatmap(cm)
-    heatmap.yaxis.set_ticklabels(heatmap.yaxis.get_ticklabels(), rotation=0, ha='right')
-    heatmap.xaxis.set_ticklabels(heatmap.xaxis.get_ticklabels(), rotation=45, ha='right')
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    plt.savefig(savedir + "valid_cm.png")
-    
-    # get bady classified images with high confidence
-    bad = np.nonzero(y_pred - y_true)
-    bad_highconfidence = list()
-    
-    for idx in bad:
-        if (y_prob[y_pred] > 0.80):
-            bad_highconfidence.append(idx)
-
-    # get ambiguous classifications
-    ambiguous = np.where(y_pred[0] > 0.45 and y_pred[0] < 0.55)
-    
-    return (bad_highconfidence, list(ambiguous))
     
 
 if __name__ == '__main__':
@@ -136,8 +96,10 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
             
-    img,label = dataset[11000]
-    feat_dir = os.join(path, "features")
-    os.mkdir(feat_dir)
+    img,label = dataset[10213]
+    img.to(device)
+    
+    feat_dir = os.path.join(path, "features")
+    if not(os.path.isdir(feat_dir)):
+        os.mkdir(feat_dir)
     getFeatureMaps(img, model, feat_dir)
-    bad_highconfidence, ambiguous = getConfusionMatrix(model, valid_loader, path)
