@@ -229,6 +229,6 @@ if __name__ == '__main__':
     baseCNN = SmallVGG().to(device)
     baseCNN.apply(init_weights)
     train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=8, 
-            learning_rate=0.001)
+            learning_rate=0.001, momentum=0.9, weight_decay=0.1)
     
     torch.save(baseCNN.state_dict(), "models/VGG_small.pt")

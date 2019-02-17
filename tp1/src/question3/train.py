@@ -48,13 +48,15 @@ def getClassificationError(outputs, labels):
     error = torch.sum(torch.abs(labels - pred))
     return (error.item(), len(labels))
 
-def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate):
+def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate, momentum, weight_decay):
     
     # Print all of the hyperparameters of the training iteration
     print("====== HYPERPARAMETERS ======")
     print("batch_size= ", batch_size)
     print("epochs= ", n_epochs)
     print("learning_rate= ", learning_rate)
+    print("momentum= ", momentum)
+    print("weight_decay= ", weight_decay)
     
     # Get device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -66,9 +68,9 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
     # optimizer = optim.SGD(model.parameters(), lr=learning_rate)
     optimizer = SGD_homemade(model.parameters(),
                              learning_rate=learning_rate,
-                             momentum=0.9,
+                             momentum=momentum,
                              dampening=0,
-                             weight_decay=0,
+                             weight_decay=weight_decay,
                              nesterov=True)
     
     n_batches = len(train_loader)
