@@ -50,8 +50,7 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.ReLU(True),
                 torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
-                torch.nn.Linear(100,2),
-                torch.nn.Sigmoid())).to(self.device)
+                torch.nn.Linear(100,2)).to(self.device)
 
     def forward(self, x):
         x1 = self.layer1(x)
@@ -63,6 +62,50 @@ class SmallVGG(torch.nn.Module):
 
         return [x, x1, x2, x3]
     
+
+class SmallVGG_5K(torch.nn.Module):
+    def __init__(self):
+        super(SmallVGG_5K, self).__init__()
+
+        # Device (cpu or gpu)
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        # input channels=3, output channels = 18
+        self.layer1 = torch.nn.Sequential(
+                torch.nn.Conv2d(3, 18, kernel_size=5, stride=1, padding=1),
+                torch.nn.ReLU(True),
+                torch.nn.Conv2d(18, 64, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+
+        self.layer2 = torch.nn.Sequential(
+                torch.nn.Conv2d(64, 128, kernel_size=5, stride=1, padding=1),
+                torch.nn.ReLU(True),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+
+        self.layer3 = torch.nn.Sequential(
+                torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+                torch.nn.ReLU(True),
+                torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)).to(self.device)
+
+
+        # Classifier -- fully connected part
+        self.classifier = torch.nn.Sequential(
+                torch.nn.Linear(12544, 1024),
+                torch.nn.ReLU(True),
+                torch.nn.Linear(1024, 100),
+                torch.nn.ReLU(True),
+                torch.nn.Linear(100,2)).to(self.device)
+
+    def forward(self, x):
+        x1 = self.layer1(x)
+        x2 = self.layer2(x1)
+        x3 = self.layer3(x2)
+
+        x = x3.view(-1, 12544)
+        x = self.classifier(x)
+
+        return [x, x1, x2, x3]
 class BigVGG(torch.nn.Module):
     def __init__(self):
         super(BigVGG, self).__init__()

@@ -88,6 +88,8 @@ def runArgParser():
         model = CNN.SmallVGG()
     elif model_name == "BigVGG":
         model = CNN.BigVGG()
+    elif model_name == "SmallVGG_5K":
+        model = CNN.SmallVGG_5K()
     else:
         model = CNN.SmallVGG()
         model_name = "SmallVGG"
