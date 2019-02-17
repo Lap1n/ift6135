@@ -4,6 +4,44 @@ import torch
 import torch.optim as optim
 from torch.autograd import Variable
 
+from torch.optim.optimizer import Optimizer
+
+class SGD_homemade(Optimizer):
+    def __init__(self, params, learning_rate, momentum=0, dampening=0, weight_decay=0, nesterov=False):
+        defaults = dict(learning_rate=learning_rate, momentum=momentum, dampening=dampening, weight_decay=weight_decay, nesterov=nesterov)
+        super(SGD_homemade, self).__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super(SGD_homemade, self)
+
+    def step(self):
+        for group in self.param_groups:
+            learning_rate = group['learning_rate']
+            weight_decay = group['weight_decay']
+            momentum = group['momentum']
+            dampening = group['dampening']
+            nesterov = group['nesterov']
+
+            for param in group['params']:
+                if param.grad is not None:
+                    d_param = param.grad.data
+                    if weight_decay != 0:
+                        d_param.add_(weight_decay, param.data)
+                    if momentum != 0:
+                        param_state = self.state[param]
+                        if "past_d" not in param_state:
+                            param_state["past_d"] = torch.zeros_like(param.data)
+
+                        param_state["past_d"].mul_(momentum).add_(1-dampening, d_param)
+
+                        if nesterov:
+                            d_param = d_param.add_(momentum, param_state["past_d"])
+                        else:
+                            d_param = param_state["past_d"]
+                    param.data.add_(-learning_rate, d_param)
+
+
+
 def getClassificationError(outputs, labels):
     # Return the classification error and number of predictions
     pred = torch.argmax(outputs,1)
@@ -25,7 +63,13 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
     loss = torch.nn.CrossEntropyLoss()
     
     # Create optimizer function -- not adam --VANILLA SGD
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    # optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = SGD_homemade(model.parameters(),
+                             learning_rate=learning_rate,
+                             momentum=0.9,
+                             dampening=0,
+                             weight_decay=0,
+                             nesterov=True)
     
     n_batches = len(train_loader)
 
@@ -47,7 +91,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
         running_loss = 0.0
         running_error = 0.0
         # Set printing frequency
-        print_every  = int(len(train_loader)/100)
+        print_every  = int(len(train_loader)/10)
         
         # put the model into training mode
         model.train()
@@ -79,7 +123,7 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
             # print every 10th bach of and epoch
             if (i+1) % (print_every + 1) == 0:
                 print("Epoch {}, {:d}% \t avg_train_loss: {:.2f}, classification error {:.2f}%".format(epoch+1, 
-                          int(100 * (i+1) / n_batches), running_loss/print_every, running_error/print_every))
+                          int(100 * (i+1) / n_batches), running_loss/print_every, running_error/print_every*100))
                 
                 # Reset running_loss and running_errors
                 running_loss = 0.0
@@ -124,7 +168,8 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
     print("Training finished")
 
     # Plot training and validation loss and error
-    print(train_loss)
-    print(valid_loss)
-    print(train_error)
-    print(valid_error)
+    import numpy as np
+    print("Training loss", np.round(train_loss, 3))
+    print("Validation loss", np.round(valid_loss, 3))
+    print("Training error", np.round(train_error, 3))
+    print("Validation error loss", np.round(valid_error, 3))
