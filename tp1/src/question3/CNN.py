@@ -58,7 +58,7 @@ class SmallVGG(torch.nn.Module):
                 torch.nn.Linear(1024, 100),
                 torch.nn.ReLU(True),
                 torch.nn.Linear(100,2),
-                torch.nn.Sigmoid())).to(self.device)
+                torch.nn.Sigmoid()).to(self.device)
 
     def forward(self, x):
         x = self.layer1(x)
@@ -72,7 +72,7 @@ class SmallVGG(torch.nn.Module):
         x = x.view(-1, 256*8*8)
         x = self.classifier(x)
 
-        return x, x1, x2, x3
+        return x
 
 class BigVGG(torch.nn.Module):
     def __init__(self):
@@ -244,6 +244,6 @@ if __name__ == '__main__':
     baseCNN = SmallVGG().to(device)
     baseCNN.apply(init_weights)
     train(baseCNN, train_loader, valid_loader, batch_size=BATCH_SIZE, n_epochs=8, 
-            learning_rate=0.001, momentum=0.9, weight_decay=0.1)
+            learning_rate=0.001, momentum=0.9, weight_decay=0.1, outdir="outdir/")
     
     torch.save(baseCNN.state_dict(), "models/VGG_big_aug.pt")

@@ -56,6 +56,8 @@ def train(model, train_loader, valid_loader, batch_size, n_epochs, learning_rate
     print("batch_size= ", batch_size)
     print("epochs= ", n_epochs)
     print("learning_rate= ", learning_rate)
+    print("momentum= ", momentum)
+    print("weight_decay= ", weight_decay)
     
     # Get device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
