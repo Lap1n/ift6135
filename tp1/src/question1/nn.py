@@ -3,8 +3,6 @@ import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.special import softmax
-from scipy.stats import entropy
 
 
 class NN(object):
@@ -76,19 +74,15 @@ class NN(object):
         # RELU for now
         return np.maximum(0, input)
 
-    @staticmethod
-    def loss(prediction, target, epsilon=1e-12):
+    def loss(self, prediction, target, epsilon=1e-12):
         prediction = np.clip(prediction, epsilon, 1. - epsilon)
-        loss_sum = 0
-        for i in range(len(prediction)):
-            loss_sum += entropy(target[i]) + entropy(target[i], prediction[i])
-        # We want the average of the loss for each sample
-        loss = loss_sum / prediction.shape[0]
-        return loss
+        num_sample = prediction.shape[0]
+        return -(np.sum(target * np.log(prediction) + (1 - target) * np.log(1 - prediction))) / num_sample
 
     @staticmethod
     def softmax(input):
-        return softmax(input, axis=1)
+        exp = np.exp(input - np.max(input))
+        return exp / np.sum(exp, axis=1, keepdims=True)
 
     def backward(self, cache, prediction, labels):
         activation_output_cache = cache["activation_output_cache"]
@@ -142,9 +136,10 @@ class NN(object):
                 self.update(grads)
 
             # Keep track of the loss for each epoch
-            # train_loss, train_accuracy = self.evaluate(train_set, mode="Train")
-            # self.train_losses.append(train_loss)
-            # self.train_accuracies.append(train_accuracy)
+            train_loss, train_accuracy = self.evaluate(train_set, mode="Train")
+            self.train_losses.append(train_loss)
+            self.train_accuracies.append(train_accuracy)
+
             valid_loss, valid_accuracy = self.validate(validation_set)
             self.valid_losses.append(valid_loss)
             self.valid_accuracies.append(valid_accuracy)
