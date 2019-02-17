@@ -136,6 +136,8 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
             
-    img,label = dataset[0]
-    getFeatureMaps(img, model)
-    bad_highconfidence, ambiguous = getConfusionMatrix(model, valid_loader)
+    img,label = dataset[11000]
+    feat_dir = os.join(path, "features")
+    os.mkdir(feat_dir)
+    getFeatureMaps(img, model, feat_dir)
+    bad_highconfidence, ambiguous = getConfusionMatrix(model, valid_loader, path)
