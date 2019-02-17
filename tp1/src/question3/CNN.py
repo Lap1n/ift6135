@@ -8,6 +8,7 @@ import PIL
 
 import dataset as ds
 from train import train
+import dropout
 
 def outputSize(in_size, kernel_size, stride, padding):
     output = int((in_size - kernel_size + 2*padding)/stride) + 1
@@ -55,7 +56,11 @@ class SmallVGG(torch.nn.Module):
         self.classifier = torch.nn.Sequential(
                 torch.nn.Linear(256*8*8, 1024),
                 torch.nn.ReLU(True),
+                dropout.DropoutHomeMade(0.5),
                 torch.nn.Linear(1024, 100),
+                torch.nn.ReLU(True),
+                dropout.DropoutHomeMade(0.5),
+                torch.nn.Linear(100, 100),
                 torch.nn.ReLU(True),
                 torch.nn.Linear(100,2)).to(self.device)
 
