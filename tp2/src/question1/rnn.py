@@ -1,7 +1,23 @@
 # Problem 1
+import math
+
 import torch
 
 from torch import nn
+
+
+# ----------------------------------------------------------------------------------
+# The encodings of elements of the input sequence
+
+class WordEmbedding(nn.Module):
+    def __init__(self, n_units, vocab):
+        super(WordEmbedding, self).__init__()
+        self.lut = nn.Embedding(vocab, n_units)
+        self.n_units = n_units
+
+    def forward(self, x):
+        # print (x)
+        return self.lut(x) * math.sqrt(self.n_units)
 
 
 class HiddenLayerBlock(nn.Module):
@@ -47,15 +63,17 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # for Pytorch to recognize these parameters as belonging to this nn.Module
         # and compute their gradients automatically. You're not obligated to use the
         # provided clones function.
-        self.num_layer = num_layers
+        self.num_layers = num_layers
+        self.vocab_size = vocab_size
         self.batch_size = batch_size
         self.seq_len = seq_len
         self.hidden_size = hidden_size
         # TODO: Not sure about the parmeters of the embeddings
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
+        # self.embedding = WordEmbedding(emb_size, vocab_size)
         self.stacked_hidden_layers = nn.ModuleList()
-        self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size))
-        for i in range(num_layers):
+        self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size, dp_keep_prob))
+        for i in range(num_layers - 1):
             self.stacked_hidden_layers.append(HiddenLayerBlock(hidden_size, hidden_size, dp_keep_prob))
 
         self.v = nn.Sequential(nn.Linear(hidden_size, vocab_size), nn.Dropout(1 - dp_keep_prob))
@@ -118,26 +136,32 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         Returns:
             - Logits for the softmax over output tokens at every time-step.
                   **Do NOT apply softmax to the outputs!**
-                  Pytorch's CrossEntropyLoss function (applied in ptb-lm.py) does
+                  Pytorch's CrossEntropyLoss function (applied in question1.py) does
                   this computation implicitly.
                         shape: (seq_len, batch_size, vocab_size)
             - The final hidden states for every layer of the stacked RNN.
                   These will be used as the initial hidden states for all the
                   mini-batches in an epoch, except for the first, where the return
                   value of self.init_hidden will beh used.
-                  See the repackage_hiddens function in ptb-lm.py for more details,
+                  See the repackage_hiddens function in question1.py for more details,
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
-        logits = torch.tensor((self.seq_len, self.batch_size, self.vocab_size))
+        # logits = torch.empty((self.seq_len, self.batch_size, self.vocab_size), requires_grad=True).cuda()
+        logits = []
+
         for time_step in range(self.seq_len):
+            new_hidden_current_step = []
             input_current_time_step = inputs[time_step]
             embedding_out = self.embedding(input_current_time_step)
-            hidden[0] = self.stacked_hidden_layers[0](embedding_out, hidden[0])
+            new_hidden_current_step.append(self.stacked_hidden_layers[0](embedding_out, hidden[0]))
             for i in range(1, len(self.stacked_hidden_layers)):
-                hidden[i] = self.stacked_hidden_layers[i](embedding_out, hidden[i])
-            logits[time_step] = self.v(hidden[-1])
+                new_hidden_current_step.append(self.stacked_hidden_layers[i](new_hidden_current_step[i - 1], hidden[i]))
+                logits.append(self.v(new_hidden_current_step[-1]))
 
+            # logits[time_step] = self.v(hidden[-1]).detach().requires_grad_()
+        logits = torch.stack(logits)
+        hidden = torch.stack(new_hidden_current_step)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def generate(self, input, hidden, generated_seq_len):
@@ -166,7 +190,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                         shape: (generated_seq_len, batch_size)
         """
         # TODO: NOT SURE HERE
-        samples = torch.tensor((generated_seq_len, self.batch_size))
+        samples = torch.empty((generated_seq_len, self.batch_size))
         input_current_time_step = input
         for time_step in range(generated_seq_len):
             embedding_out = self.embedding(input_current_time_step)

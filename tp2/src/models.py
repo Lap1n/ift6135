@@ -31,33 +31,33 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    "
-    A
-    helper
-    function
-    for producing N identical layers (each with their own parameters).
-
-    inputs:
-    module: a
-    pytorch
-    nn.module
-    N(int): the
-    number
-    of
-    copies
-    of
-    that
-    module
-    to
-    return
-
-
-returns:
-a
-ModuleList
-with the copies of the module (the ModuleList is itself also a module)
-"
-return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+    #     "
+    #     A
+    #     helper
+    #     function
+    #     for producing N identical layers (each with their own parameters).
+    #
+    #     inputs:
+    #     module: a
+    #     pytorch
+    #     nn.module
+    #     N(int): the
+    #     number
+    #     of
+    #     copies
+    #     of
+    #     that
+    #     module
+    #     to
+    #     return
+    #
+    #
+    # returns:
+    # a
+    # ModuleList
+    # with the copies of the module (the ModuleList is itself also a module)
+    # "
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
 # Problem 1
@@ -92,6 +92,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # provided clones function.
 
     def init_weights(self):
+        pass
 
     # TODO ========================
     # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
@@ -187,6 +188,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         # TODO ========================
 
     def init_weights_uniform(self):
+        pass
 
     # TODO ========================
 
