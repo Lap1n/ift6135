@@ -21,10 +21,10 @@ class WordEmbedding(nn.Module):
 
 
 class HiddenLayerBlock(nn.Module):
-    def __init__(self, in_size, hidden_size, dp_keep_prob):
+    def __init__(self, in_size, hidden_size):
         super(HiddenLayerBlock, self).__init__()
         # TODO: should I dropout on U?
-        self.u = nn.Sequential(nn.Linear(in_size, hidden_size), nn.Dropout(1 - dp_keep_prob))
+        self.u = nn.Linear(in_size, hidden_size)
         self.w = nn.Linear(hidden_size, hidden_size)
         self.tanh = nn.Tanh()
 
@@ -72,11 +72,11 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
         # self.embedding = WordEmbedding(emb_size, vocab_size)
         self.stacked_hidden_layers = nn.ModuleList()
-        self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size, dp_keep_prob))
+        self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size))
         for i in range(num_layers - 1):
-            self.stacked_hidden_layers.append(HiddenLayerBlock(hidden_size, hidden_size, dp_keep_prob))
-
-        self.v = nn.Sequential(nn.Linear(hidden_size, vocab_size), nn.Dropout(1 - dp_keep_prob))
+            self.stacked_hidden_layers.append(HiddenLayerBlock(hidden_size, hidden_size))
+        self.drop_out = nn.Dropout(1 - dp_keep_prob)
+        self.v = nn.Linear(hidden_size, vocab_size)
         self.soft_max = nn.Softmax()
 
     def init_weights(self):
@@ -153,13 +153,12 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         for time_step in range(self.seq_len):
             new_hidden_current_step = []
             input_current_time_step = inputs[time_step]
-            embedding_out = self.embedding(input_current_time_step)
-            new_hidden_current_step.append(self.stacked_hidden_layers[0](embedding_out, hidden[0]))
+            embedding_out = self.drop_out(self.embedding(input_current_time_step))
+            new_hidden_current_step.append(self.drop_out(self.stacked_hidden_layers[0](embedding_out, hidden[0])))
             for i in range(1, len(self.stacked_hidden_layers)):
-                new_hidden_current_step.append(self.stacked_hidden_layers[i](new_hidden_current_step[i - 1], hidden[i]))
-                logits.append(self.v(new_hidden_current_step[-1]))
-
-            # logits[time_step] = self.v(hidden[-1]).detach().requires_grad_()
+                new_hidden_current_step.append(
+                    self.drop_out(self.stacked_hidden_layers[i](new_hidden_current_step[i - 1], hidden[i])))
+            logits.append(self.v(new_hidden_current_step[-1]))
         logits = torch.stack(logits)
         hidden = torch.stack(new_hidden_current_step)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
