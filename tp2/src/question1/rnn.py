@@ -188,16 +188,17 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             - Sampled sequences of tokens
                         shape: (generated_seq_len, batch_size)
         """
-        # TODO: NOT SURE HERE
-        samples = torch.empty((generated_seq_len, self.batch_size))
+        samples = []
         input_current_time_step = input
-        for time_step in range(generated_seq_len):
-            embedding_out = self.embedding(input_current_time_step)
-            hidden[0] = self.stacked_hidden_layers[0](embedding_out, hidden[0])
+        for time_step in range(self.seq_len):
+            new_hidden_current_step = []
+            embedding_out = self.drop_out(self.embedding(input_current_time_step))
+            new_hidden_current_step.append(self.drop_out(self.stacked_hidden_layers[0](embedding_out, hidden[0])))
             for i in range(1, len(self.stacked_hidden_layers)):
-                hidden[i] = self.stacked_hidden_layers[i](embedding_out, hidden[i])
+                new_hidden_current_step.append(
+                    self.drop_out(self.stacked_hidden_layers[i](new_hidden_current_step[i - 1], hidden[i])))
             logits = self.soft_max(self.v(hidden[-1]))
             input_current_time_step = torch.max(logits, 1)
-            samples[time_step] = input_current_time_step
-
+            samples.append(input_current_time_step)
+        samples = torch.stack(samples)
         return samples
