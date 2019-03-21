@@ -94,7 +94,7 @@ np = numpy
 # This is where your models are imported
 sys.path.insert(0, '../')
 from tp2.src.models import RNN, GRU
-from tp2.src.question2.transformer import make_model as TRANSFORMER
+from tp2.src.question3.transformer import make_model as TRANSFORMER
 
 ##############################################################################
 #
