@@ -70,7 +70,6 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.hidden_size = hidden_size
         # TODO: Not sure about the parmeters of the embeddings
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
-        # self.embedding = WordEmbedding(emb_size, vocab_size)
         self.stacked_hidden_layers = nn.ModuleList()
         self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size))
         for i in range(num_layers - 1):
@@ -88,12 +87,9 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
         # in the range [-k, k] where k is the square root of 1/hidden_size
 
-        # TODO: INITIALIZE BIAS ?
-
         lower_bound = -0.1
         higher_bound = 0.1
         nn.init.uniform_(self.embedding.weight, lower_bound, higher_bound)
-        # nn.init.uniform_(self.embedding.lut.weight, lower_bound, higher_bound)
         nn.init.uniform_(self.v.weight, lower_bound, higher_bound)
         nn.init.zeros_(self.v.bias)
         self.stacked_hidden_layers.apply(self.apply_hidden_layers_init)
@@ -181,8 +177,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         """
         Arguments:
-            - input: A mini-batch of input tokens (NOT sequences!)
-                            shape: (batch_size)
+            - input: A mini-batch of input tokens (NOT sequences!)é
             - hidden: The initial hidden states for every layer of the stacked RNN.
                             shape: (num_layers, batch_size, hidden_size)
             - generated_seq_len: The length of the sequence to generate.
