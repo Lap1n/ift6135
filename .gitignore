@@ -137,4 +137,8 @@ venv.bak/
 
 ## Plugin-specific files:
 
+.idea/ift6135.iml
+.idea/misc.xml
+.idea/modules.xml
+
 # IntelliJ
