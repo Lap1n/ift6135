@@ -152,12 +152,12 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         for time_step in range(self.seq_len):
             new_hidden_current_step = []
             current_emb = embeddings[time_step]
-            new_hidden_current_step.append(self.stacked_hidden_layers[0](self.drop_out(current_emb), hidden[0]).clone())
+            new_hidden_current_step.append(self.stacked_hidden_layers[0](self.drop_out(current_emb), hidden[0]))
             for i in range(1, len(self.stacked_hidden_layers)):
                 new_hidden_current_step.append(
-                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1].clone()),
-                                                  hidden[i]).clone())
-            logits.append(self.v(self.drop_out(new_hidden_current_step[-1].clone())).clone())
+                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]),
+                                                  hidden[i]))
+            logits.append(self.v(self.drop_out(new_hidden_current_step[-1])))
             hidden = torch.stack(new_hidden_current_step)
         logits = torch.stack(logits)
 
@@ -193,13 +193,13 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             new_hidden_current_step = []
             embedding_out = self.embedding(input_current_time_step)
             new_hidden_current_step.append(
-                self.stacked_hidden_layers[0](self.drop_out(embedding_out), hidden[0]).clone())
+                self.stacked_hidden_layers[0](self.drop_out(embedding_out), hidden[0]))
             for i in range(1, len(self.stacked_hidden_layers)):
                 new_hidden_current_step.append(
-                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]), hidden[i]).clone())
-            logits = self.soft_max(self.v(self.drop_out(new_hidden_current_step[-1])).clone())
+                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]), hidden[i]))
+            logits = self.soft_max(self.v(self.drop_out(new_hidden_current_step[-1])))
             input_current_time_step = torch.max(logits, 1)
-            samples.append(input_current_time_step.clone())
+            samples.append(input_current_time_step)
             hidden = torch.stack(new_hidden_current_step)
         samples = torch.stack(samples)
         return samples
