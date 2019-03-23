@@ -165,7 +165,8 @@ class GRUCell(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.input2hidden = nn.Linear(input_size, output_size * 3, bias) #all 3 W in one matrix
-        self.hidden2hidden = nn.Linear(output_size, output_size * 3, bias) # all 3 U in one matrix
+        self.hidden2hidden_gates = nn.Linear(output_size, output_size * 2, bias) # all 2 U in one matrix
+        self.hidden2hidden_cell = nn.Linear(output_size, output_size, bias)
         # self.cell_state = torch.zeros(output_size)
 
         self.init_weights_uniform()
@@ -178,12 +179,15 @@ class GRUCell(nn.Module):
     def forward(self, x, hidden):
 
         w_z, w_r, w_c = self.input2hidden(x).chunk(3, 1)
-        u_z, u_r, u_c = self.hidden2hidden(hidden).chunk(3, 1)
+        u_z, u_r = self.hidden2hidden_gates(hidden).chunk(2, 1)
+
 
         z = torch.sigmoid(u_z + w_z) #update gate
         r = torch.sigmoid(u_r + w_r) #reset gate
 
-        c_tile = torch.tanh(u_c * hidden + w_c)
+        u_c = self.hidden2hidden_cell(hidden*r)
+
+        c_tile = torch.tanh(u_c + w_c)
         c = (1-z)*hidden + z * c_tile
 
         h = c
