@@ -166,7 +166,7 @@ class GRUCell(nn.Module):
         self.output_size = output_size
         self.input2hidden = nn.Linear(input_size, output_size * 3, bias) #all 3 W in one matrix
         self.hidden2hidden = nn.Linear(output_size, output_size * 3, bias) # all 3 U in one matrix
-        self.cell_state = torch.zeros(output_size)
+        # self.cell_state = torch.zeros(output_size)
 
         self.init_weights_uniform()
 
@@ -183,10 +183,12 @@ class GRUCell(nn.Module):
         z = torch.sigmoid(u_z + w_z) #update gate
         r = torch.sigmoid(u_r + w_r) #reset gate
 
-        self.cell_state = (1-z)*self.cell_state + z*torch.tanh(u_c * hidden + w_c)
+        c_tile = torch.tanh(u_c * hidden + w_c)
+        c = (1-z)*hidden + z * c_tile
 
-        return self.cell_state
+        h = c
 
+        return h
 
 # Problem 2
 class GRU(nn.Module):  # Implement a stacked GRU RNN
