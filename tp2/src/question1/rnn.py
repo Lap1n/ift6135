@@ -24,12 +24,12 @@ class HiddenLayerBlock(nn.Module):
     def __init__(self, in_size, hidden_size):
         super(HiddenLayerBlock, self).__init__()
         # TODO: should I dropout on U?
-        self.u = nn.Linear(in_size, hidden_size)
-        self.w = nn.Linear(hidden_size, hidden_size)
+        self.w_x = nn.Linear(in_size, hidden_size, bias=False)
+        self.w_h = nn.Linear(hidden_size, hidden_size, bias=True)
         self.tanh = nn.Tanh()
 
     def forward(self, inputs, hidden):
-        a = self.w(hidden) + self.u(inputs)
+        a = self.w_h(hidden).add(self.w_x(inputs))
         h = self.tanh(a)
         return h
 
@@ -70,7 +70,6 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.hidden_size = hidden_size
         # TODO: Not sure about the parmeters of the embeddings
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
-        # self.embedding = WordEmbedding(emb_size, vocab_size)
         self.stacked_hidden_layers = nn.ModuleList()
         self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size))
         for i in range(num_layers - 1):
@@ -79,6 +78,8 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.v = nn.Linear(hidden_size, vocab_size)
         self.soft_max = nn.Softmax()
 
+        self.init_weights()
+
     def init_weights(self):
         # TODO ========================
         # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
@@ -86,20 +87,19 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
         # in the range [-k, k] where k is the square root of 1/hidden_size
 
-        # TODO: INITIALIZE BIAS ?
-
         lower_bound = -0.1
         higher_bound = 0.1
-        nn.init.uniform(self.embedding.weight, lower_bound, higher_bound)
-        nn.init.uniform(self.v.weight, lower_bound, higher_bound)
-        self.v.bias.data.fill_(0.0)
+        nn.init.uniform_(self.embedding.weight, lower_bound, higher_bound)
+        nn.init.uniform_(self.v.weight, lower_bound, higher_bound)
+        nn.init.zeros_(self.v.bias)
         self.stacked_hidden_layers.apply(self.apply_hidden_layers_init)
 
     def apply_hidden_layers_init(self, m):
         if type(m) == nn.Linear:
-            k = (1.0 / self.hidden_size)
-            torch.nn.init.uniform(m.weight, -k, k)
-            torch.nn.init.uniform(m.bias, -k, k)
+            k = 1.0 / (self.hidden_size ** 0.5)
+            torch.nn.init.uniform_(m.weight, -k, k)
+            if m.bias is not None:
+                torch.nn.init.uniform_(m.bias, -k, k)
 
     def init_hidden(self):
         # TODO ========================
@@ -108,7 +108,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         This is used for the first mini-batch in an epoch, only.
         """
 
-        initial_hidden = torch.zeros((self.num_layers, self.batch_size, self.hidden_size))
+        initial_hidden = torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
         return initial_hidden  # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
@@ -147,20 +147,20 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
-        # logits = torch.empty((self.seq_len, self.batch_size, self.vocab_size), requires_grad=True).cuda()
         logits = []
-
+        embeddings = self.embedding(inputs)
         for time_step in range(self.seq_len):
             new_hidden_current_step = []
-            input_current_time_step = inputs[time_step]
-            embedding_out = self.drop_out(self.embedding(input_current_time_step))
-            new_hidden_current_step.append(self.drop_out(self.stacked_hidden_layers[0](embedding_out, hidden[0])))
+            current_emb = embeddings[time_step]
+            new_hidden_current_step.append(self.stacked_hidden_layers[0](self.drop_out(current_emb), hidden[0]).clone())
             for i in range(1, len(self.stacked_hidden_layers)):
                 new_hidden_current_step.append(
-                    self.drop_out(self.stacked_hidden_layers[i](new_hidden_current_step[i - 1], hidden[i])))
-            logits.append(self.v(new_hidden_current_step[-1]))
+                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1].clone()),
+                                                  hidden[i]).clone())
+            logits.append(self.v(self.drop_out(new_hidden_current_step[-1].clone())).clone())
+            hidden = torch.stack(new_hidden_current_step)
         logits = torch.stack(logits)
-        hidden = torch.stack(new_hidden_current_step)
+
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def generate(self, input, hidden, generated_seq_len):
@@ -177,8 +177,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         """
         Arguments:
-            - input: A mini-batch of input tokens (NOT sequences!)
-                            shape: (batch_size)
+            - input: A mini-batch of input tokens (NOT sequences!)é
             - hidden: The initial hidden states for every layer of the stacked RNN.
                             shape: (num_layers, batch_size, hidden_size)
             - generated_seq_len: The length of the sequence to generate.
@@ -190,15 +189,17 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         """
         samples = []
         input_current_time_step = input
-        for time_step in range(self.seq_len):
+        for time_step in range(generated_seq_len):
             new_hidden_current_step = []
-            embedding_out = self.drop_out(self.embedding(input_current_time_step))
-            new_hidden_current_step.append(self.drop_out(self.stacked_hidden_layers[0](embedding_out, hidden[0])))
+            embedding_out = self.embedding(input_current_time_step)
+            new_hidden_current_step.append(
+                self.stacked_hidden_layers[0](self.drop_out(embedding_out), hidden[0]).clone())
             for i in range(1, len(self.stacked_hidden_layers)):
                 new_hidden_current_step.append(
-                    self.drop_out(self.stacked_hidden_layers[i](new_hidden_current_step[i - 1], hidden[i])))
-            logits = self.soft_max(self.v(hidden[-1]))
+                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]), hidden[i]).clone())
+            logits = self.soft_max(self.v(self.drop_out(new_hidden_current_step[-1])).clone())
             input_current_time_step = torch.max(logits, 1)
-            samples.append(input_current_time_step)
+            samples.append(input_current_time_step.clone())
+            hidden = torch.stack(new_hidden_current_step)
         samples = torch.stack(samples)
         return samples
