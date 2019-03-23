@@ -83,6 +83,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
     # and output biases to 0 (in place). The embeddings should not use a bias vector.
     # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
     # in the range [-k, k] where k is the square root of 1/hidden_size
+        return
 
     def init_hidden(self):
         # TODO ========================
@@ -90,7 +91,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         """
         This is used for the first mini-batch in an epoch, only.
         """
-        return  # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+        return  0# a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
         # TODO ========================
@@ -158,6 +159,34 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         return samples
 
+class GRUCell(nn.Module):
+    def __init__(self, input_size, output_size, bias=True):
+        super(GRUCell, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.input2hidden = nn.Linear(input_size, output_size * 3, bias) #all 3 W in one matrix
+        self.hidden2hidden = nn.Linear(output_size, output_size * 3, bias) # all 3 U in one matrix
+        self.cell_state = torch.zeros(output_size)
+
+        self.init_weights_uniform()
+
+    def init_weights_uniform(self):
+        bound = 1/math.sqrt(self.output_size)
+        for weights in self.parameters():
+            weights.data.uniform_(-bound, bound)
+
+    def forward(self, x, hidden):
+
+        w_z, w_r, w_c = self.input2hidden(x).chunk(3, 1)
+        u_z, u_r, u_c = self.hidden2hidden(hidden).chunk(3, 1)
+
+        z = torch.sigmoid(u_z + w_z) #update gate
+        r = torch.sigmoid(u_r + w_r) #reset gate
+
+        self.cell_state = (1-z)*self.cell_state + z*torch.tanh(u_c * hidden + w_c)
+
+        return self.cell_state
+
 
 # Problem 2
 class GRU(nn.Module):  # Implement a stacked GRU RNN
@@ -179,8 +208,6 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
                          Do not apply dropout on recurrent connections.
         """
         super(GRU, self).__init__()
-
-
         # TODO ========================
         # Initialization of the parameters of the recurrent and fc layers.
         # Your implementation should support any number of stacked hidden layers
@@ -195,14 +222,30 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         # for Pytorch to recognize these parameters as belonging to this nn.Module
         # and compute their gradients automatically. You're not obligated to use the
         # provided clones function.
+        self.seq_len = seq_len
+        self.num_layers = num_layers
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
+        self.vocab_size = vocab_size
+        self.embedding = WordEmbedding(emb_size, vocab_size)
+        self.gru_cells = nn.ModuleList()
+        self.gru_cells.append(GRUCell(emb_size,hidden_size))
+        for _ in range(num_layers-1):
+            self.gru_cells.append(GRUCell(hidden_size, hidden_size))
+        self.linear_out = nn.Linear(hidden_size, vocab_size)
+        self.softmax_out = nn.Softmax()
 
     def init_weights_uniform(self):
 
-    # TODO ========================
-    # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
-    # and output biases to 0 (in place). The embeddings should not use a bias vector.
-    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
-    # in the range [-k, k] where k is the square root of 1/hidden_size
+        # TODO ========================
+        # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+        # and output biases to 0 (in place). The embeddings should not use a bias vector.
+        # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
+        # in the range [-k, k] where k is the square root of 1/hidden_size
+        bound = 0.1
+        self.embedding.lut.weight.uniform_(-bound, bound)
+        self.linear_out.weight.uniform_(-bound, bound)
+        return 0
 
     def init_hidden(self):
         # TODO ========================
@@ -210,7 +253,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         """
         This is used for the first mini-batch in an epoch, only.
         """
-        return  # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)# a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
         # TODO ========================
@@ -248,6 +291,16 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
+        logits = []
+        embeddings = self.embedding(inputs)
+        for time_step in range(self.seq_len):
+            embedding = embeddings[time_step]
+            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
+            for gru_cell_index in range(1, self.num_layers):
+                new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1], hidden[gru_cell_index]))
+            logits.append(self.linear_out(new_hidden[-1]))
+            hidden = torch.stack(new_hidden)
+        logits=torch.stack(logits)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def generate(self, input, hidden, generated_seq_len):
@@ -274,7 +327,18 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         Returns:
             - Sampled sequences of tokens
         """
-
+        samples = []
+        current_input = input
+        for time_step in range(generated_seq_len):
+            embedding = self.embedding(current_input)
+            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
+            for gru_cell_index in range(1, self.num_layers):
+                new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1], hidden[gru_cell_index]))
+            logits = self.softmax_out(self.linear_out(new_hidden[-1]))
+            current_input = torch.max(logits, 1)
+            samples.append(current_input.clone())
+            hidden = torch.stack(new_hidden)
+        samples = torch.stack(samples)
         return samples
 
 
