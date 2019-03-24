@@ -176,8 +176,9 @@ class GRUCell(nn.Module):
         for weights in self.parameters():
             weights.data.uniform_(-bound, bound)
 
+
     def forward(self, x, hidden):
-        w_z, w_r, w_c = self.input2hidden(x).chunk(3, 1)
+        w_z, w_r, w_c = self.input2hidden(self.dropout(x)).chunk(3, 1)
         u_z, u_r = self.hidden2hidden_gates(hidden).chunk(2, 1)
 
         z = torch.sigmoid(u_z + w_z) #update gate
@@ -187,8 +188,7 @@ class GRUCell(nn.Module):
 
         h_tilde = torch.tanh(u_c + w_c)
         h = (1-z)*hidden + z * h_tilde
-        return self.dropout(h)
-
+        return h
 # Problem 2
 class GRU(nn.Module):  # Implement a stacked GRU RNN
     """
@@ -235,7 +235,6 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.gru_cells.append(GRUCell(emb_size,hidden_size))
         for _ in range(num_layers-1):
             self.gru_cells.append(GRUCell(hidden_size, hidden_size, bias=True, dp_keep_prob=dp_keep_prob))
-        self.dropout_embedding = nn.Dropout(1-dp_keep_prob)
         self.dropout_out = nn.Dropout(1-dp_keep_prob)
         self.linear_out = nn.Linear(hidden_size, vocab_size)
         self.softmax_out = nn.Softmax()
@@ -250,6 +249,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         bound = 0.1
         self.embedding.lut.weight.uniform_(-bound, bound)
         self.linear_out.weight.uniform_(-bound, bound)
+        self.linear_out.bias.zero_()
         return 0
 
     def init_hidden(self):
@@ -300,7 +300,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         embeddings = self.embedding(inputs)
         for time_step in range(self.seq_len):
             embedding = embeddings[time_step]
-            new_hidden = [self.gru_cells[0](self.dropout_embedding(embedding), hidden[0]).clone()]
+            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
             for gru_cell_index in range(1, self.num_layers):
                 new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1].clone(), hidden[gru_cell_index].clone()))
             logits.append(self.linear_out(self.dropout_out(new_hidden[-1].clone())).clone())
