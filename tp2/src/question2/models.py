@@ -235,7 +235,6 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
-        # TODO ========================
         """
         Arguments:
             - inputs: A mini-batch of input sequences, composed of integers that
@@ -285,133 +284,26 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         Returns:
             - Sampled sequences of tokens
         """
-        samples = []
-        current_input = input
-        for time_step in range(generated_seq_len):
-            embedding = self.embedding(current_input)
-            new_hidden = [self.gru_cells[0](self.dropout(embedding), hidden[0]).clone()]
-            for gru_cell_index in range(1, self.num_layers):
-                new_hidden.append(self.gru_cells[gru_cell_index](self.dropout(new_hidden[-1].clone()), hidden[gru_cell_index]).clone())
-            logits = self.softmax_out(self.linear_out(self.dropout_out(new_hidden[-1]))).clone()
-            current_input = torch.max(logits, 1)
-            samples.append(current_input.clone())
-            hidden = torch.stack(new_hidden)
+
+        samples = [input]
+        embeddings = self.embedding(input)
+        for time_step in range(self.seq_len):
+            x = embeddings[time_step]
+            last_hidden = []
+            for layer in range(self.num_layers):
+                h = self.gru_cells[layer](x, hidden[layer])
+                last_hidden.append(h.clone())
+                x = h.clone()
+            hidden = torch.stack(last_hidden)
+            probs = self.softmax_out(self.linear_out(self.dropout(x)))
+            m = Categorical(probs)
+            sample = m.sample()
+            samples.append(sample)
+            input = sample
+
         samples = torch.stack(samples)
         return samples
 
-
-
-
-# # Problem 2
-#
-# class GRU(nn.Module): # Implement a stacked GRU RNN
-#   """
-#   Follow the same instructions as for RNN (above), but use the equations for
-#   GRU, not Vanilla RNN.
-#   """
-#   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
-#     super(GRU, self).__init__()
-#     # TODO ========================
-#     self.emb_size = emb_size
-#     self.hidden_size = hidden_size
-#     self.seq_len = seq_len
-#     self.batch_size = batch_size
-#     self.vocab_size = vocab_size
-#     self.num_layers = num_layers
-#     self.dp_keep_prob = dp_keep_prob
-#     self.embedding = nn.Embedding(self.vocab_size, self.emb_size)
-#     self.dropout = nn.Dropout(1 - self.dp_keep_prob)
-#     self.wr = nn.ModuleList([nn.Linear(self.emb_size, self.hidden_size, bias=False)])
-#     self.wr.extend([nn.Linear(self.hidden_size, self.hidden_size, bias=False) for _ in range(1, self.num_layers)])
-#     self.ur = clones(nn.Linear(self.hidden_size, self.hidden_size, bias= True), self.num_layers)
-#     self.sigma_r = torch.nn.Sigmoid()
-#     self.wz = nn.ModuleList([nn.Linear(self.emb_size, self.hidden_size, bias=False)])
-#     self.wz.extend([nn.Linear(self.hidden_size, self.hidden_size, bias=False) for _ in range(1, self.num_layers)])
-#     self.uz = clones(nn.Linear(self.hidden_size, self.hidden_size, bias=True), self.num_layers)
-#     self.sigma_z = torch.nn.Sigmoid()
-#     self.wh = nn.ModuleList([nn.Linear(self.emb_size, self.hidden_size, bias=False)])
-#     self.wh.extend([nn.Linear(self.hidden_size, self.hidden_size, bias=False) for _ in range(1, self.num_layers)])
-#     self.uh = clones(nn.Linear(self.hidden_size, self.hidden_size, bias=True), self.num_layers)
-#     self.Tanh_h = torch.nn.Tanh()
-#     self.wy = nn.Linear(self.hidden_size, self.vocab_size, bias=True)
-#     self.init_weights_uniform()
-#
-#   def init_weights_uniform(self):
-#     #pass
-#     bound = 1 / ((self.hidden_size) ** (0.5))
-#     nn.init.uniform_(self.embedding.weight, -0.1, 0.1)
-#     for weights in self.parameters():
-#         if weights in [self.wr, self.ur, self.wz, self.wh, self.uh]:
-#             weights.data.uniform_(-bound, bound)
-#     # for module in self.wr:
-#     #     nn.init.uniform_(module.weight, -bound, bound)
-#     # for module in self.ur:
-#     #     nn.init.uniform_(module.weight, -bound, bound)
-#     #     nn.init.uniform_(module.bias, -bound, bound)
-#     # for module in self.wz:
-#     #     nn.init.uniform_(module.weight, -bound, bound)
-#     # for module in self.uz:
-#     #     nn.init.uniform_(module.weight, -bound, bound)
-#     #     nn.init.uniform_(module.bias, -bound, bound)
-#     # for module in self.wh:
-#     #     nn.init.uniform_(module.weight, -bound, bound)
-#     # for module in self.uh:
-#     #     nn.init.uniform_(module.weight, -bound, bound)
-#     #     nn.init.uniform_(module.bias, -bound, bound)
-#     nn.init.uniform_(self.wy.weight, -0.1, 0.1)
-#     nn.init.zeros_(self.wy.bias)
-#
-#   def init_hidden(self):
-#     # TODO ========================
-#     hidden = torch.zeros([self.num_layers, self.batch_size, self.hidden_size])
-#     return hidden # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
-#   def forward(self, inputs, hidden):
-#     # TODO ========================
-#     l_logits = []
-#     embed = self.embedding(inputs)
-#     for t in range(self.seq_len):
-#         l_hidden = []
-#         for layer in range(self.num_layers):
-#             if layer == 0:
-#                 x = self.dropout(embed[t])
-#             else:
-#                 x = last_hidden_below
-#             rt = self.sigma_r(self.wr[layer](x) + self.ur[layer](hidden[layer]))
-#             zt = self.sigma_z(self.wz[layer](x) + self.uz[layer](hidden[layer]))
-#             h_tilde_t =  self.Tanh_h(self.wh[layer](x) + self.uh[layer](rt * hidden[layer]))
-#             ht = (1-zt) * hidden[layer]  + zt * h_tilde_t
-#             l_hidden.append(ht.clone())
-#             last_hidden_below = self.dropout(ht).clone()
-#         hidden = torch.stack(l_hidden)
-#         l_logits.append(self.wy(last_hidden_below))
-#     logits = torch.stack(l_logits)
-#     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
-#   def generate(self, input, hidden, generated_seq_len):
-#     # TODO ========================
-#     l_samples = [input]
-#     for t in range(1, generated_seq_len):
-#         l_hidden = []
-#         for layer in range(self.num_layers):
-#             if layer == 0:
-#                 x = self.dropout(self.embedding(input))
-#             else:
-#                 x = last_hidden_below
-#             rt = self.sigma_r(self.wr[layer](x) + self.ur[layer](hidden[layer]))
-#             zt = self.sigma_z(self.wz[layer](x) + self.uz[layer](hidden[layer]))
-#             h_tilde_t = self.Tanh_h(self.wh[layer](x) + self.uh[layer](rt * hidden[layer]))
-#             ht = (1 - zt) * hidden[layer] + zt * h_tilde_t
-#             l_hidden.append(ht.clone())
-#             last_hidden_below = self.dropout(ht).clone()
-#         hidden = torch.stack(l_hidden)
-#         preactivations = self.wy(last_hidden_below.clone())
-#         softm = nn.Softmax(dim=1)
-#         probs = softm(preactivations)
-#         m = Categorical(probs)
-#         sortie = m.sample()
-#         l_samples.append(sortie)
-#         input = sortie
-#     samples = torch.stack(l_samples)
-#     return samples
 
 
 # Problem 3
