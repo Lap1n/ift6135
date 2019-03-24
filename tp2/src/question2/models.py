@@ -265,6 +265,13 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.linear_out = nn.Linear(hidden_size, vocab_size)
         self.softmax_out = nn.Softmax()
 
+    def apply_gru_cells_init(self, m):
+        if type(m) == nn.Linear:
+            k = 1.0 / (self.hidden_size ** 0.5)
+            torch.nn.init.uniform_(m.weight, -k, k)
+            if m.bias is not None:
+                torch.nn.init.uniform_(m.bias, -k, k)
+
     def init_weights_uniform(self):
 
         # TODO ========================
@@ -276,7 +283,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.embedding.weight.uniform_(-bound, bound)
         self.linear_out.weight.uniform_(-bound, bound)
         self.linear_out.bias.uniform_(0,0)
-        return 0
+        self.gru_cells.apply(self.apply_gru_cells_init)
 
     def init_hidden(self):
         """
