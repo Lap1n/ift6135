@@ -169,12 +169,13 @@ class GRUCell(nn.Module):
         self.hidden2hidden_cell = nn.Linear(output_size, output_size, bias)
         # self.cell_state = torch.zeros(output_size)
 
-        self.init_weights_uniform()
+        # self.init_weights_uniform()
 
     def init_weights_uniform(self):
         bound = 1/math.sqrt(self.output_size)
         for weights in self.parameters():
             weights.data.uniform_(-bound, bound)
+            weights.bias.uniform_(-bound, bound)
 
     def forward(self, x, hidden):
 
@@ -235,7 +236,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.vocab_size = vocab_size
         self.dp_keep_prob = dp_keep_prob
 
-        self.embedding = WordEmbedding(emb_size, vocab_size)
+        self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
         self.gru_cells = nn.ModuleList()
         self.gru_cells.append(GRUCell(emb_size,hidden_size))
         for _ in range(num_layers-1):
@@ -243,6 +244,13 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.dropout = nn.Dropout(1-dp_keep_prob)
         self.linear_out = nn.Linear(hidden_size, vocab_size)
         self.softmax_out = nn.Softmax()
+
+    def apply_hidden_layers_init(self, m):
+        if type(m) == nn.Linear:
+            k = 1.0 / (self.hidden_size ** 0.5)
+            torch.nn.init.uniform_(m.weight, -k, k)
+            if m.bias is not None:
+                torch.nn.init.uniform_(m.bias, -k, k)
 
     def init_weights_uniform(self):
 
@@ -252,8 +260,11 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
         # in the range [-k, k] where k is the square root of 1/hidden_size
         bound = 0.1
-        self.embedding.lut.weight.uniform_(-bound, bound)
+        self.embedding.weight.uniform_(-bound, bound)
         self.linear_out.weight.uniform_(-bound, bound)
+        self.linear_out.bias.uniform_(0, 0)
+
+        self.gru_cells.apply(self.apply_hidden_layers_init)
         return 0
 
     def init_hidden(self):
