@@ -224,9 +224,9 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 
     def init_weights_uniform(self):
         bound = 0.1
-        self.embedding.weight.uniform_(-bound, bound)
-        self.linear_out.weight.uniform_(-bound, bound)
-        self.linear_out.bias.uniform_(0,0)
+        nn.init.uniform_(self.embedding.weight,-bound, bound)
+        nn.init.uniform_(self.linear_out.weight, -bound, bound)
+        nn.init.zeros_(self.linear_out.bias)
 
     def init_hidden(self):
         """
@@ -268,7 +268,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
                 last_hidden.append(h.clone())
                 x = h.clone()
             hidden = torch.stack(last_hidden)
-            logits.append(self.linear_out(self.dropout(last_hidden)))
+            logits.append(self.linear_out(self.dropout(x)))
         logits=torch.stack(logits)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
@@ -360,7 +360,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 #     #     nn.init.uniform_(module.bias, -bound, bound)
 #     nn.init.uniform_(self.wy.weight, -0.1, 0.1)
 #     nn.init.zeros_(self.wy.bias)
-# 
+#
 #   def init_hidden(self):
 #     # TODO ========================
 #     hidden = torch.zeros([self.num_layers, self.batch_size, self.hidden_size])
