@@ -210,7 +210,6 @@ class GRUCellV2(nn.Module):
         for weights in self.parameters():
             weights.data.uniform_(-bound, bound)
 
-
     def forward(self, x, hidden):
         r = torch.sigmoid(self.W_r(x) + self.U_r(hidden))
         z = torch.sigmoid(self.W_z(x) + self.U_z(hidden))
@@ -259,7 +258,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.vocab_size = vocab_size
         self.dp_keep_prob = dp_keep_prob
 
-        self.embedding = WordEmbedding(emb_size, vocab_size)
+        self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
         self.gru_cells = nn.ModuleList()
         self.gru_cells.append(GRUCellV2(emb_size,hidden_size))
         for _ in range(num_layers-1):
@@ -276,7 +275,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
         # in the range [-k, k] where k is the square root of 1/hidden_size
         bound = 0.1
-        self.embedding.lut.weight.uniform_(-bound, bound)
+        self.embedding.weight.uniform_(-bound, bound)
         self.linear_out.weight.uniform_(-bound, bound)
         self.linear_out.bias.zero_()
         return 0
