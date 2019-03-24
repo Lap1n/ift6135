@@ -164,8 +164,8 @@ class GRUCell(nn.Module):
         super(GRUCell, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
-        self.input2hidden = nn.Linear(input_size, output_size * 3, bias) # W_r, W_z, W_h n one matrix
-        self.hidden2hidden_gates = nn.Linear(output_size, output_size * 2, bias) # U_r, U_z in one matrix
+        self.input2hidden = nn.Linear(input_size, output_size * 3, bias=True) # W_r, W_z, W_h n one matrix
+        self.hidden2hidden_gates = nn.Linear(output_size, output_size * 2, bias=False) # U_r, U_z in one matrix
         self.hidden2hidden_cell = nn.Linear(output_size, output_size, bias) # U_h
         # self.dp_keep_prob = dp_keep_prob
         # self.dropout = nn.Dropout(1-dp_keep_prob)
@@ -192,39 +192,31 @@ class GRUCell(nn.Module):
         return h
 
 
-# class GRUCellV2(nn.Module):
-#     def __init__(self, input_size, output_size, bias=True, dp_keep_prob=0.5):
-#         super(GRUCellV2, self).__init__()
-#         self.input_size = input_size
-#         self.output_size = output_size
-#         self.W_r = Variable(torch.Tensor(output_size, input_size), requires_grad=True)
-#         self.U_r = Variable(torch.Tensor(output_size, output_size), requires_grad=True)
-#         self.b_r = Variable(torch.Tensor(output_size), requires_grad=True)
-#
-#         self.W_z = Variable(torch.Tensor(output_size, input_size), requires_grad=True)
-#         self.U_z = Variable(torch.Tensor(output_size, output_size), requires_grad=True)
-#         self.b_z = Variable(torch.Tensor(output_size), requires_grad=True)
-#
-#         self.W_h = Variable(torch.Tensor(output_size, input_size), requires_grad=True)
-#         self.U_h = Variable(torch.Tensor(output_size, output_size), requires_grad=True)
-#         self.b_h = Variable(torch.Tensor(output_size), requires_grad=True)
-#
-#         self.init_weights_uniform()
-#
-#     def init_weights_uniform(self):
-#         bound = 1/math.sqrt(self.output_size)
-#         for weights in self.parameters():
-#             weights.data.uniform_(-bound, bound)
-#
-#
-#     def forward(self, x, hidden):
-#         print(x.unsqueeze(-1).shape, hidden.shape, self.W_r.shape)
-#         r = torch.sigmoid(torch.matmul(self.W_r, x.unsqueeze(-1)) + torch.matmul(self.U_r, hidden.unsqueeze(-1)) + self.b_r)
-#         z = torch.sigmoid(torch.matmul(self.W_z, x.unsqueeze(-1)) + torch.matmul(self.U_z, hidden.unsqueeze(-1)) + self.b_z)
-#         h_tilde = torch.tanh(torch.matmul(self.W_h, x.unsqueeze(-1)) + torch.matmul(self.U_h, r*hidden.unsqueeze(-1)) + self.b_h)
-#         print(r.shape, z.shape, h_tilde.shape)
-#         h = (1-z)*hidden + z*h_tilde
-#         return h
+class GRUCellV2(nn.Module):
+    def __init__(self, input_size, output_size, bias=True, dp_keep_prob=0.5):
+        super(GRUCellV2, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.W_r = nn.Linear(input_size, output_size, bias=True)
+        self.U_r = nn.Linear(output_size, output_size, bias=False)
+
+        self.W_z = nn.Linear(input_size, output_size, bias=True)
+        self.U_z = nn.Linear(output_size, output_size, bias=False)
+
+        self.W_h = nn.Linear(input_size, output_size, bias=True)
+        self.U_h = nn.Linear(output_size, output_size, bias=False)
+
+        bound = 1/math.sqrt(self.output_size)
+        for weights in self.parameters():
+            weights.data.uniform_(-bound, bound)
+
+
+    def forward(self, x, hidden):
+        r = torch.sigmoid(self.W_r(x) + self.U_r(hidden))
+        z = torch.sigmoid(self.W_z(x) + self.U_z(hidden))
+        h_tilde = torch.tanh(self.W_h(x) + self.U_h(r*hidden))
+        h = (1-z)*hidden + z*h_tilde
+        return h
 
 # Problem 2
 class GRU(nn.Module):  # Implement a stacked GRU RNN
@@ -269,9 +261,9 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 
         self.embedding = WordEmbedding(emb_size, vocab_size)
         self.gru_cells = nn.ModuleList()
-        self.gru_cells.append(GRUCell(emb_size,hidden_size))
+        self.gru_cells.append(GRUCellV2(emb_size,hidden_size))
         for _ in range(num_layers-1):
-            self.gru_cells.append(GRUCell(hidden_size, hidden_size, bias=True, dp_keep_prob=dp_keep_prob))
+            self.gru_cells.append(GRUCellV2(hidden_size, hidden_size, bias=True, dp_keep_prob=dp_keep_prob))
         self.dropout = nn.Dropout(1-dp_keep_prob)
         self.linear_out = nn.Linear(hidden_size, vocab_size)
         self.softmax_out = nn.Softmax()
