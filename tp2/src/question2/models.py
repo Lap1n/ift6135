@@ -193,27 +193,25 @@ class GRUCell(nn.Module):
 
 
 class GRUCellV2(nn.Module):
-    def __init__(self, input_size, output_size, bias=True, dp_keep_prob=0.5):
+    def __init__(self, input_size, output_size, dp_keep_prob=0.35):
         super(GRUCellV2, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
-        self.W_r = nn.Linear(input_size, output_size, bias=True)
-        self.U_r = nn.Linear(output_size, output_size, bias=False)
-
-        self.W_z = nn.Linear(input_size, output_size, bias=True)
-        self.U_z = nn.Linear(output_size, output_size, bias=False)
-
-        self.W_h = nn.Linear(input_size, output_size, bias=True)
-        self.U_h = nn.Linear(output_size, output_size, bias=False)
+        self.w_rzh = nn.Linear(input_size, output_size*3, bias=True)
+        self.u_rz = nn.Linear(output_size, output_size*2, bias=False)
+        self.u_h = nn.Linear(output_size, output_size, bias=False)
+        self.dropout = nn.Dropout(1-dp_keep_prob)
 
         bound = 1/math.sqrt(self.output_size)
         for weights in self.parameters():
             weights.data.uniform_(-bound, bound)
 
     def forward(self, x, hidden):
-        r = torch.sigmoid(self.W_r(x) + self.U_r(hidden))
-        z = torch.sigmoid(self.W_z(x) + self.U_z(hidden))
-        h_tilde = torch.tanh(self.W_h(x) + self.U_h(r*hidden))
+        w_z, w_r, w_h = self.w_rzh(self.dropout(x)).chunk(3, 1)
+        u_z, u_r = self.u_rz(hidden).chunk(2, 1)
+        r = torch.sigmoid(w_r + u_r)
+        z = torch.sigmoid(w_z + u_z)
+        h_tilde = torch.tanh(w_h + self.u_h(r*hidden))
         h = (1-z)*hidden + z*h_tilde
         return h
 
@@ -262,7 +260,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.gru_cells = nn.ModuleList()
         self.gru_cells.append(GRUCellV2(emb_size,hidden_size))
         for _ in range(num_layers-1):
-            self.gru_cells.append(GRUCellV2(hidden_size, hidden_size, bias=True, dp_keep_prob=dp_keep_prob))
+            self.gru_cells.append(GRUCellV2(hidden_size, hidden_size))
         self.dropout = nn.Dropout(1-dp_keep_prob)
         self.linear_out = nn.Linear(hidden_size, vocab_size)
         self.softmax_out = nn.Softmax()
@@ -277,16 +275,14 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         bound = 0.1
         self.embedding.weight.uniform_(-bound, bound)
         self.linear_out.weight.uniform_(-bound, bound)
-        self.linear_out.bias.zero_()
+        self.linear_out.bias.uniform_(0,0)
         return 0
 
     def init_hidden(self):
-        # TODO ========================
-        # initialize the hidden states to zero
         """
         This is used for the first mini-batch in an epoch, only.
         """
-        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)# a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
         # TODO ========================
@@ -324,16 +320,28 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
+        # logits = []
+        # embeddings = self.embedding(inputs)
+        # for time_step in range(self.seq_len):
+        #     embedding = embeddings[time_step]
+        #     new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
+        #     for gru_cell_index in range(1, self.num_layers):
+        #         new_hidden.append(self.gru_cells[gru_cell_index](self.dropout(new_hidden[-1].clone()), hidden[gru_cell_index].clone()))
+        #     logits.append(self.linear_out(self.dropout(new_hidden[-1].clone())).clone())
+        #     hidden = torch.stack(new_hidden)
+        # logits=torch.stack(logits)
+        # return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+
         logits = []
         embeddings = self.embedding(inputs)
         for time_step in range(self.seq_len):
             embedding = embeddings[time_step]
-            new_hidden = [self.gru_cells[0](self.dropout(embedding), hidden[0]).clone()]
+            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
             for gru_cell_index in range(1, self.num_layers):
-                new_hidden.append(self.gru_cells[gru_cell_index](self.dropout(new_hidden[-1].clone()), hidden[gru_cell_index].clone()))
+                new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1].clone(), hidden[gru_cell_index].clone()))
             logits.append(self.linear_out(self.dropout(new_hidden[-1].clone())).clone())
             hidden = torch.stack(new_hidden)
-        logits=torch.stack(logits)
+        logits = torch.stack(logits)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def generate(self, input, hidden, generated_seq_len):
