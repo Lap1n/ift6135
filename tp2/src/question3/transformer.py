@@ -314,7 +314,8 @@ class MultiHeadedAttention(nn.Module):
         # If there is a mask, repeat the mask over the number of heads
         # (same mask is applied to all heads)
         # mask has final size of: (batch_size, n_heads, seq_len, seq_len)
-        if mask is not None: 
+        if mask is not None:
+            mask = 1 - mask
             mask = mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
 
         ### Scaled dot product attention
