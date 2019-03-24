@@ -418,7 +418,7 @@ class GRUCellV2(nn.Module):
         h_tilde = torch.tanh(w_h + self.u_h(r*hidden))
         h = (1-z)*hidden + z*h_tilde
         return h
-    
+
 class GRU(nn.Module): # Implement a stacked GRU RNN
   """
   Follow the same instructions as for RNN (above), but use the equations for
@@ -454,22 +454,24 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   def init_weights_uniform(self):
     #pass
     bound = 1 / ((self.hidden_size) ** (0.5))
+    for weights in self.parameters():
+        weights.data.uniform_(-bound, bound)
     nn.init.uniform_(self.embedding.weight, -0.1, 0.1)
-    for module in self.wr:
-        nn.init.uniform_(module.weight, -bound, bound)
-    for module in self.ur:
-        nn.init.uniform_(module.weight, -bound, bound)
-        nn.init.uniform_(module.bias, -bound, bound)
-    for module in self.wz:
-        nn.init.uniform_(module.weight, -bound, bound)
-    for module in self.uz:
-        nn.init.uniform_(module.weight, -bound, bound)
-        nn.init.uniform_(module.bias, -bound, bound)
-    for module in self.wh:
-        nn.init.uniform_(module.weight, -bound, bound)
-    for module in self.uh:
-        nn.init.uniform_(module.weight, -bound, bound)
-        nn.init.uniform_(module.bias, -bound, bound)
+    # for module in self.wr:
+    #     nn.init.uniform_(module.weight, -bound, bound)
+    # for module in self.ur:
+    #     nn.init.uniform_(module.weight, -bound, bound)
+    #     nn.init.uniform_(module.bias, -bound, bound)
+    # for module in self.wz:
+    #     nn.init.uniform_(module.weight, -bound, bound)
+    # for module in self.uz:
+    #     nn.init.uniform_(module.weight, -bound, bound)
+    #     nn.init.uniform_(module.bias, -bound, bound)
+    # for module in self.wh:
+    #     nn.init.uniform_(module.weight, -bound, bound)
+    # for module in self.uh:
+    #     nn.init.uniform_(module.weight, -bound, bound)
+    #     nn.init.uniform_(module.bias, -bound, bound)
     nn.init.uniform_(self.wy.weight, -0.1, 0.1)
     nn.init.zeros_(self.wy.bias)
 
