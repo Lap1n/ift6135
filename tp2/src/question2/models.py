@@ -167,7 +167,7 @@ class GRUCell(nn.Module):
         self.input2hidden = nn.Linear(input_size, output_size * 3, bias) # W_r, W_z, W_h n one matrix
         self.hidden2hidden_gates = nn.Linear(output_size, output_size * 2, bias) # U_r, U_z in one matrix
         self.hidden2hidden_cell = nn.Linear(output_size, output_size, bias) # U_h
-        self.dp_keep_prob = dp_keep_prob
+        # self.dp_keep_prob = dp_keep_prob
         self.dropout = nn.Dropout(1-dp_keep_prob)
         self.init_weights_uniform()
 
@@ -179,6 +179,7 @@ class GRUCell(nn.Module):
 
     def forward(self, x, hidden):
         w_z, w_r, w_c = self.input2hidden(self.dropout(x)).chunk(3, 1)
+        # w_z, w_r, w_c = self.input2hidden(x).chunk(3, 1)
         u_z, u_r = self.hidden2hidden_gates(hidden).chunk(2, 1)
 
         z = torch.sigmoid(u_z + w_z) #update gate
@@ -189,6 +190,42 @@ class GRUCell(nn.Module):
         h_tilde = torch.tanh(u_c + w_c)
         h = (1-z)*hidden + z * h_tilde
         return h
+
+
+# class GRUCellV2(nn.Module):
+#     def __init__(self, input_size, output_size, bias=True, dp_keep_prob=0.5):
+#         super(GRUCellV2, self).__init__()
+#         self.input_size = input_size
+#         self.output_size = output_size
+#         self.W_r = Variable(torch.Tensor(output_size, input_size), requires_grad=True)
+#         self.U_r = Variable(torch.Tensor(output_size, output_size), requires_grad=True)
+#         self.b_r = Variable(torch.Tensor(output_size), requires_grad=True)
+#
+#         self.W_z = Variable(torch.Tensor(output_size, input_size), requires_grad=True)
+#         self.U_z = Variable(torch.Tensor(output_size, output_size), requires_grad=True)
+#         self.b_z = Variable(torch.Tensor(output_size), requires_grad=True)
+#
+#         self.W_h = Variable(torch.Tensor(output_size, input_size), requires_grad=True)
+#         self.U_h = Variable(torch.Tensor(output_size, output_size), requires_grad=True)
+#         self.b_h = Variable(torch.Tensor(output_size), requires_grad=True)
+#
+#         self.init_weights_uniform()
+#
+#     def init_weights_uniform(self):
+#         bound = 1/math.sqrt(self.output_size)
+#         for weights in self.parameters():
+#             weights.data.uniform_(-bound, bound)
+#
+#
+#     def forward(self, x, hidden):
+#         print(x.unsqueeze(-1).shape, hidden.shape, self.W_r.shape)
+#         r = torch.sigmoid(torch.matmul(self.W_r, x.unsqueeze(-1)) + torch.matmul(self.U_r, hidden.unsqueeze(-1)) + self.b_r)
+#         z = torch.sigmoid(torch.matmul(self.W_z, x.unsqueeze(-1)) + torch.matmul(self.U_z, hidden.unsqueeze(-1)) + self.b_z)
+#         h_tilde = torch.tanh(torch.matmul(self.W_h, x.unsqueeze(-1)) + torch.matmul(self.U_h, r*hidden.unsqueeze(-1)) + self.b_h)
+#         print(r.shape, z.shape, h_tilde.shape)
+#         h = (1-z)*hidden + z*h_tilde
+#         return h
+
 # Problem 2
 class GRU(nn.Module):  # Implement a stacked GRU RNN
     """
@@ -336,7 +373,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         current_input = input
         for time_step in range(generated_seq_len):
             embedding = self.embedding(current_input)
-            new_hidden = [self.gru_cells[0](self.dropout_embedding(embedding), hidden[0]).clone()]
+            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
             for gru_cell_index in range(1, self.num_layers):
                 new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1], hidden[gru_cell_index]).clone())
             logits = self.softmax_out(self.linear_out(self.dropout_out(new_hidden[-1]))).clone()
