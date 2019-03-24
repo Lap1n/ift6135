@@ -454,9 +454,10 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   def init_weights_uniform(self):
     #pass
     bound = 1 / ((self.hidden_size) ** (0.5))
-    for weights in self.parameters():
-        weights.data.uniform_(-bound, bound)
     nn.init.uniform_(self.embedding.weight, -0.1, 0.1)
+    for weights in self.parameters():
+        if weights in [self.wr, self.ur, self.wz, self.wh, self.uh]:
+            weights.data.uniform_(-bound, bound)
     # for module in self.wr:
     #     nn.init.uniform_(module.weight, -bound, bound)
     # for module in self.ur:
