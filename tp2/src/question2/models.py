@@ -168,7 +168,7 @@ class GRUCell(nn.Module):
         self.hidden2hidden_gates = nn.Linear(output_size, output_size * 2, bias) # U_r, U_z in one matrix
         self.hidden2hidden_cell = nn.Linear(output_size, output_size, bias) # U_h
         # self.dp_keep_prob = dp_keep_prob
-        self.dropout = nn.Dropout(1-dp_keep_prob)
+        # self.dropout = nn.Dropout(1-dp_keep_prob)
         self.init_weights_uniform()
 
     def init_weights_uniform(self):
@@ -178,8 +178,8 @@ class GRUCell(nn.Module):
 
 
     def forward(self, x, hidden):
-        w_z, w_r, w_c = self.input2hidden(self.dropout(x)).chunk(3, 1)
-        # w_z, w_r, w_c = self.input2hidden(x).chunk(3, 1)
+        # w_z, w_r, w_c = self.input2hidden(self.dropout(x)).chunk(3, 1)
+        w_z, w_r, w_c = self.input2hidden(x).chunk(3, 1)
         u_z, u_r = self.hidden2hidden_gates(hidden).chunk(2, 1)
 
         z = torch.sigmoid(u_z + w_z) #update gate
@@ -272,7 +272,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.gru_cells.append(GRUCell(emb_size,hidden_size))
         for _ in range(num_layers-1):
             self.gru_cells.append(GRUCell(hidden_size, hidden_size, bias=True, dp_keep_prob=dp_keep_prob))
-        self.dropout_out = nn.Dropout(1-dp_keep_prob)
+        self.dropout = nn.Dropout(1-dp_keep_prob)
         self.linear_out = nn.Linear(hidden_size, vocab_size)
         self.softmax_out = nn.Softmax()
 
@@ -337,10 +337,10 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         embeddings = self.embedding(inputs)
         for time_step in range(self.seq_len):
             embedding = embeddings[time_step]
-            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
+            new_hidden = [self.gru_cells[0](self.dropout(embedding), hidden[0]).clone()]
             for gru_cell_index in range(1, self.num_layers):
-                new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1].clone(), hidden[gru_cell_index].clone()))
-            logits.append(self.linear_out(self.dropout_out(new_hidden[-1].clone())).clone())
+                new_hidden.append(self.gru_cells[gru_cell_index](self.dropout(new_hidden[-1].clone()), hidden[gru_cell_index].clone()))
+            logits.append(self.linear_out(self.dropout(new_hidden[-1].clone())).clone())
             hidden = torch.stack(new_hidden)
         logits=torch.stack(logits)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
@@ -373,9 +373,9 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         current_input = input
         for time_step in range(generated_seq_len):
             embedding = self.embedding(current_input)
-            new_hidden = [self.gru_cells[0](embedding, hidden[0]).clone()]
+            new_hidden = [self.gru_cells[0](self.dropout(embedding), hidden[0]).clone()]
             for gru_cell_index in range(1, self.num_layers):
-                new_hidden.append(self.gru_cells[gru_cell_index](new_hidden[-1], hidden[gru_cell_index]).clone())
+                new_hidden.append(self.gru_cells[gru_cell_index](self.dropout(new_hidden[-1].clone()), hidden[gru_cell_index]).clone())
             logits = self.softmax_out(self.linear_out(self.dropout_out(new_hidden[-1]))).clone()
             current_input = torch.max(logits, 1)
             samples.append(current_input.clone())
