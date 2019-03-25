@@ -109,7 +109,6 @@ elif args.output_length == "double":
 input = torch.LongTensor(args.batch_size).random_(0, vocab_size)
 generated_seq = model.generate(input, model.init_hidden(), generated_seq_len)
 
-word = []
 generated_seq = generated_seq.numpy().transpose()
 word_sequences = []
 with open('./generated_sequence_type_{}_in_length_{}_out_length_{}.txt'.format(args.model, args.seq_len,
