@@ -1,5 +1,9 @@
+import collections
+import os
+import numpy as np
+from torch.autograd import Variable
 
-# HELPER FUNCTIONS
+
 def _read_words(filename):
     with open(filename, "r") as f:
         return f.read().replace("\n", "<eos>").split()
