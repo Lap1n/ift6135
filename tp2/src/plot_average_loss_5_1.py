@@ -32,7 +32,7 @@ gru_result_array = load_result(args.gru_result)
 transformer_result_array = load_result(args.transformer_result)
 
 # Data
-df = pd.DataFrame({'Step': range(rnn_result_array.shape[0]), 'RNN': gru_result_array[:], 'GRU': rnn_result_array[:],
+df = pd.DataFrame({'Step': range(rnn_result_array.shape[0]), 'RNN': rnn_result_array[:], 'GRU': gru_result_array[:],
                    'Transformer': transformer_result_array[:]})
 
 # Data
