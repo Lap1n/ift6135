@@ -115,14 +115,14 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     Returns:
         - Logits for the softmax over output tokens at every time-step.
               **Do NOT apply softmax to the outputs!**
-              Pytorch's CrossEntropyLoss function (applied in ptb_lm.py) does
+              Pytorch's CrossEntropyLoss function (applied in ptb-lm.py) does
               this computation implicitly.
                     shape: (seq_len, batch_size, vocab_size)
         - The final hidden states for every layer of the stacked RNN.
               These will be used as the initial hidden states for all the 
               mini-batches in an epoch, except for the first, where the return 
               value of self.init_hidden will be used.
-              See the repackage_hiddens function in ptb_lm.py for more details,
+              See the repackage_hiddens function in ptb-lm.py for more details,
               if you are curious.
                     shape: (num_layers, batch_size, hidden_size)
     """

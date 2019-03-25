@@ -8,11 +8,10 @@ import os
 import sys
 import collections
 
-# HELPER FUNCTIONS
 import torch
 
 from tp2.src.models import RNN, GRU
-from tp2.src.ptb_lm import ptb_raw_data
+from tp2.src.utils import ptb_raw_data
 
 parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Modeling')
 
