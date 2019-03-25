@@ -28,7 +28,6 @@ import matplotlib.pyplot as plt
 # You should not modify the interals of the Transformer
 # except where indicated to implement the multi-head
 # attention.
-from torch.distributions import Categorical
 
 
 def clones(module, N):
@@ -46,20 +45,7 @@ def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
-class HiddenLayerBlock(nn.Module):
-    def __init__(self, in_size, hidden_size):
-        super(HiddenLayerBlock, self).__init__()
-        # TODO: should I dropout on U?
-        self.w_x = nn.Linear(in_size, hidden_size, bias=False)
-        self.w_h = nn.Linear(hidden_size, hidden_size, bias=True)
-        self.tanh = nn.Tanh()
-
-    def forward(self, inputs, hidden):
-        a = self.w_h(hidden).add(self.w_x(inputs))
-        h = self.tanh(a)
-        return h
-
-
+# Problem 1
 class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearities.
     def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
         """
@@ -89,43 +75,15 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # for Pytorch to recognize these parameters as belonging to this nn.Module
         # and compute their gradients automatically. You're not obligated to use the
         # provided clones function.
-        self.num_layers = num_layers
-        self.vocab_size = vocab_size
-        self.batch_size = batch_size
-        self.seq_len = seq_len
-        self.hidden_size = hidden_size
-        # TODO: Not sure about the parmeters of the embeddings
-        self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
-        self.stacked_hidden_layers = nn.ModuleList()
-        self.stacked_hidden_layers.append(HiddenLayerBlock(emb_size, hidden_size))
-        for i in range(num_layers - 1):
-            self.stacked_hidden_layers.append(HiddenLayerBlock(hidden_size, hidden_size))
-        self.drop_out = nn.Dropout(1 - dp_keep_prob)
-        self.v = nn.Linear(hidden_size, vocab_size)
-        self.soft_max = nn.Softmax()
-
-        self.init_weights()
 
     def init_weights(self):
-        # TODO ========================
-        # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
-        # and output biases to 0 (in place). The embeddings should not use a bias vector.
-        # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
-        # in the range [-k, k] where k is the square root of 1/hidden_size
 
-        lower_bound = -0.1
-        higher_bound = 0.1
-        nn.init.uniform_(self.embedding.weight, lower_bound, higher_bound)
-        nn.init.uniform_(self.v.weight, lower_bound, higher_bound)
-        nn.init.zeros_(self.v.bias)
-        self.stacked_hidden_layers.apply(self.apply_hidden_layers_init)
-
-    def apply_hidden_layers_init(self, m):
-        if type(m) == nn.Linear:
-            k = 1.0 / (self.hidden_size ** 0.5)
-            torch.nn.init.uniform_(m.weight, -k, k)
-            if m.bias is not None:
-                torch.nn.init.uniform_(m.bias, -k, k)
+    # TODO ========================
+    # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+    # and output biases to 0 (in place). The embeddings should not use a bias vector.
+    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
+    # in the range [-k, k] where k is the square root of 1/hidden_size
+        return
 
     def init_hidden(self):
         # TODO ========================
@@ -133,9 +91,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         """
         This is used for the first mini-batch in an epoch, only.
         """
-
-        initial_hidden = torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
-        return initial_hidden  # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+        return  0# a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
         # TODO ========================
@@ -162,31 +118,17 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         Returns:
             - Logits for the softmax over output tokens at every time-step.
                   **Do NOT apply softmax to the outputs!**
-                  Pytorch's CrossEntropyLoss function (applied in question1.py) does
+                  Pytorch's CrossEntropyLoss function (applied in ptb-lm.py) does
                   this computation implicitly.
                         shape: (seq_len, batch_size, vocab_size)
             - The final hidden states for every layer of the stacked RNN.
                   These will be used as the initial hidden states for all the
                   mini-batches in an epoch, except for the first, where the return
-                  value of self.init_hidden will beh used.
-                  See the repackage_hiddens function in question1.py for more details,
+                  value of self.init_hidden will be used.
+                  See the repackage_hiddens function in ptb-lm.py for more details,
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
-        logits = []
-        embeddings = self.embedding(inputs)
-        for time_step in range(self.seq_len):
-            new_hidden_current_step = []
-            current_emb = embeddings[time_step]
-            new_hidden_current_step.append(self.stacked_hidden_layers[0](self.drop_out(current_emb), hidden[0]).clone())
-            for i in range(1, len(self.stacked_hidden_layers)):
-                new_hidden_current_step.append(
-                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1].clone()),
-                                                  hidden[i]).clone())
-            logits.append(self.v(self.drop_out(new_hidden_current_step[-1].clone())).clone())
-            hidden = torch.stack(new_hidden_current_step)
-        logits = torch.stack(logits)
-
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def generate(self, input, hidden, generated_seq_len):
@@ -203,7 +145,8 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         """
         Arguments:
-            - input: A mini-batch of input tokens (NOT sequences!)é
+            - input: A mini-batch of input tokens (NOT sequences!)
+                            shape: (batch_size)
             - hidden: The initial hidden states for every layer of the stacked RNN.
                             shape: (num_layers, batch_size, hidden_size)
             - generated_seq_len: The length of the sequence to generate.
@@ -213,28 +156,10 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             - Sampled sequences of tokens
                         shape: (generated_seq_len, batch_size)
         """
-        samples = [input]
-        input_current_time_step = input
-        for time_step in range(generated_seq_len):
-            new_hidden_current_step = []
-            embedding_out = self.embedding(input_current_time_step)
-            new_hidden_current_step.append(
-                self.stacked_hidden_layers[0](self.drop_out(embedding_out), hidden[0]))
-            for i in range(1, len(self.stacked_hidden_layers)):
-                new_hidden_current_step.append(
-                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]), hidden[i]))
-            logits = self.soft_max(self.v(self.drop_out(new_hidden_current_step[-1])))
-            # _, input_current_time_step = torch.max(logits, 1)
-            categories = Categorical(logits)
-            sample = categories.sample()
-            samples.append(sample)
-            input_current_time_step = sample
-            hidden = torch.stack(new_hidden_current_step)
-        samples = torch.stack(samples)
+
         return samples
 
 
-# Problem 2
 class GRUCell(nn.Module):
     def __init__(self, input_size, output_size, dp_keep_prob=0.35):
         super(GRUCell, self).__init__()
@@ -258,7 +183,7 @@ class GRUCell(nn.Module):
         h = (1-z)*hidden + z*h_tilde
         return h
 
-
+# Problem 2
 class GRU(nn.Module):  # Implement a stacked GRU RNN
     """
     Follow the same instructions as for RNN (above), but use the equations for
@@ -361,9 +286,9 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         """
 
         samples = [input]
-        current_input = input
-        for time_step in range(generated_seq_len):
-            x = self.embedding(current_input)
+        embeddings = self.embedding(input)
+        for time_step in range(self.seq_len):
+            x = embeddings[time_step]
             last_hidden = []
             for layer in range(self.num_layers):
                 h = self.gru_cells[layer](x, hidden[layer])
@@ -374,10 +299,11 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             m = Categorical(probs)
             sample = m.sample()
             samples.append(sample)
-            current_input = sample
+            input = sample
 
         samples = torch.stack(samples)
         return samples
+
 
 
 # Problem 3
@@ -390,21 +316,25 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 """
 Implement the MultiHeadedAttention module of the transformer architecture.
 All other necessary modules have already been implemented for you.
+
 We're building a transfomer architecture for next-step prediction tasks, and 
 applying it to sequential language modelling. We use a binary "mask" to specify 
 which time-steps the model can use for the current prediction.
 This ensures that the model only attends to previous time-steps.
+
 The model first encodes inputs using the concatenation of a learned WordEmbedding 
 and a (in our case, hard-coded) PositionalEncoding.
 The word embedding maps a word's one-hot encoding into a dense real vector.
 The positional encoding 'tags' each element of an input sequence with a code that 
 identifies it's position (i.e. time-step).
+
 These encodings of the inputs are then transformed repeatedly using multiple
 copies of a TransformerBlock.
 This block consists of an application of MultiHeadedAttention, followed by a 
 standard MLP; the MLP applies *the same* mapping at every position.
 Both the attention and the MLP are applied with Resnet-style skip connections, 
 and layer normalization.
+
 The complete model consists of the embeddings, the stacked transformer blocks, 
 and a linear layer followed by a softmax.
 """
@@ -452,7 +382,6 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
-        self.n_heads = n_heads
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
@@ -463,30 +392,6 @@ class MultiHeadedAttention(nn.Module):
         # ETA: you can use the "clones" function we provide.
         # ETA: you can use masked_fill
 
-        # Linear layers for the Q, K, and V
-        self.w_query = nn.Linear(n_units, n_heads * self.d_k)
-        self.w_keys = nn.Linear(n_units, n_heads * self.d_k)
-        self.w_values = nn.Linear(n_units, n_heads * self.d_k)
-
-        # Initialisation of layers (weights and biases) uniformly in [-k, k]
-        k = np.sqrt(1.0 / n_units)
-        nn.init.uniform_(self.w_query.weight, -k, k)
-        nn.init.uniform_(self.w_keys.weight, -k, k)
-        nn.init.uniform_(self.w_values.weight, -k, k)
-        nn.init.uniform_(self.w_query.bias, -k, k)
-        nn.init.uniform_(self.w_keys.bias, -k, k)
-        nn.init.uniform_(self.w_values.bias, -k, k)
-
-        # Linear layer for the output and initialisation
-        self.output_proj = nn.Linear(n_heads * self.d_k, self.n_units)
-        nn.init.uniform_(self.output_proj.weight, -k, k)
-        nn.init.uniform_(self.output_proj.bias, -k, k)
-
-        # Dropout layer
-        self.scale_factor = np.sqrt(self.d_k)
-        self.dropout = nn.Dropout(dropout)
-        self.softmax = nn.Softmax(dim=-1)
-
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
         # query, key, and value correspond to Q, K, and V in the latex, and
@@ -496,42 +401,7 @@ class MultiHeadedAttention(nn.Module):
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
 
-        # Getting some useful values
-        batch_size = query.shape[0]
-        seq_len = query.shape[1]
-
-        # Project linearly queries, keys and values
-        # All have size of (batch_size, n_heads, seq_len, d_k)
-        queries = self.w_query(query).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
-        keys = self.w_keys(key).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
-        values = self.w_values(value).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
-
-        # If there is a mask, repeat the mask over the number of heads
-        # (same mask is applied to all heads)
-        # mask has final size of: (batch_size, n_heads, seq_len, seq_len)
-        if mask is not None:
-            mask = 1 - mask
-            mask = mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
-
-        ### Scaled dot product attention
-        scores = torch.matmul(queries, keys.transpose(-1, -2)) / self.scale_factor
-
-        # Apply mask
-        if mask is not None:
-            scores.masked_fill_(mask, -1e9)
-
-        attn = self.dropout(self.softmax(scores))
-
-        # output: (batch_size, n_heads, seq_len, d_k)
-        output = torch.matmul(attn, values)
-
-        # Reshape the output to: (batch_size, seq_len, n_heads x d_k)
-        output = output.transpose(1, 2).contiguous().view(batch_size, seq_len, self.n_heads * self.d_k)
-
-        # Apply the output linear layer and dropout
-        output = self.dropout(self.output_proj(output))
-
-        return output  # size: (batch_size, seq_len, self.n_units)
+        return  # size: (batch_size, seq_len, self.n_units)
 
 
 # ----------------------------------------------------------------------------------
