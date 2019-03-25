@@ -12,43 +12,7 @@ import collections
 import torch
 
 from tp2.src.models import RNN, GRU
-
-
-def _read_words(filename):
-    with open(filename, "r") as f:
-        return f.read().replace("\n", "<eos>").split()
-
-
-def _build_vocab(filename):
-    data = _read_words(filename)
-
-    counter = collections.Counter(data)
-    count_pairs = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
-
-    words, _ = list(zip(*count_pairs))
-    word_to_id = dict(zip(words, range(len(words))))
-    id_to_word = dict((v, k) for k, v in word_to_id.items())
-
-    return word_to_id, id_to_word
-
-
-def _file_to_word_ids(filename, word_to_id):
-    data = _read_words(filename)
-    return [word_to_id[word] for word in data if word in word_to_id]
-
-
-# Processes the raw data from text files
-def ptb_raw_data(data_path=None, prefix="ptb"):
-    train_path = os.path.join(data_path, prefix + ".train.txt")
-    valid_path = os.path.join(data_path, prefix + ".valid.txt")
-    test_path = os.path.join(data_path, prefix + ".test.txt")
-
-    word_to_id, id_2_word = _build_vocab(train_path)
-    train_data = _file_to_word_ids(train_path, word_to_id)
-    valid_data = _file_to_word_ids(valid_path, word_to_id)
-    test_data = _file_to_word_ids(test_path, word_to_id)
-    return train_data, valid_data, test_data, word_to_id, id_2_word
-
+from tp2.src.ptb_lm import ptb_raw_data
 
 parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Modeling')
 
