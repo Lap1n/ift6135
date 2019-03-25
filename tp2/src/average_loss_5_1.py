@@ -1,12 +1,12 @@
 import argparse
-import os
 import sys
 
+import matplotlib.pyplot as plt
 import torch
-from torch.autograd import Variable
 
 from tp2.src.models import Batch, RNN, GRU
 import numpy as np
+from models import make_model as TRANSFORMER
 
 from tp2.src.utils import ptb_raw_data, ptb_iterator, repackage_hidden
 
@@ -85,6 +85,21 @@ elif args.model == 'GRU':
                 seq_len=args.seq_len, batch_size=args.batch_size,
                 vocab_size=vocab_size, num_layers=args.num_layers,
                 dp_keep_prob=args.dp_keep_prob)
+elif args.model == 'TRANSFORMER':
+    if args.debug:  # use a very small model
+        model = TRANSFORMER(vocab_size=vocab_size, n_units=16, n_blocks=2)
+    else:
+        # Note that we're using num_layers and hidden_size to mean slightly
+        # different things here than in the RNNs.
+        # Also, the Transformer also has other hyperparameters
+        # (such as the number of attention heads) which can change it's behavior.
+        model = TRANSFORMER(vocab_size=vocab_size, n_units=args.hidden_size,
+                            n_blocks=args.num_layers, dropout=1. - args.dp_keep_prob)
+        # these 3 attributes don't affect the Transformer's computations;
+    # they are only used in run_epoch
+    model.batch_size = args.batch_size
+    model.seq_len = args.seq_len
+    model.vocab_size = vocab_size
 else:
     print("Model type not recognized.")
 
@@ -134,7 +149,6 @@ def run_epoch(model, data):
     return loss_per_step / float(iters)
 
 
-average_loss_per_step = run_epoch(model, train_data)
+average_loss_per_step = run_epoch(model, train_data).numpy()
 
-with open('./generated_sequence_type_{}_in_length_{}.txt'.format(args.model, args.seq_len), 'a+') as f:
-    print(average_loss_per_step.numpy().tolist(), file=f)
+np.save('./average_loss_type_{}_in_length_{}.npy'.format(args.model, args.seq_len), average_loss_per_step)
