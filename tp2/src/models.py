@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 # You should not modify the interals of the Transformer
 # except where indicated to implement the multi-head
 # attention.
+from torch.distributions import Categorical
 
 
 def clones(module, N):
@@ -233,13 +234,16 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             new_hidden_current_step = []
             embedding_out = self.embedding(input_current_time_step)
             new_hidden_current_step.append(
-                self.stacked_hidden_layers[0](self.drop_out(embedding_out), hidden[0]).clone())
+                self.stacked_hidden_layers[0](self.drop_out(embedding_out), hidden[0]))
             for i in range(1, len(self.stacked_hidden_layers)):
                 new_hidden_current_step.append(
-                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]), hidden[i]).clone())
-            logits = self.soft_max(self.v(self.drop_out(new_hidden_current_step[-1])).clone())
-            input_current_time_step = torch.max(logits, 1)
-            samples.append(input_current_time_step.clone())
+                    self.stacked_hidden_layers[i](self.drop_out(new_hidden_current_step[i - 1]), hidden[i]))
+            logits = self.soft_max(self.v(self.drop_out(new_hidden_current_step[-1])))
+            # _, input_current_time_step = torch.max(logits, 1)
+            categories = Categorical(logits)
+            sample = categories.sample()
+            samples.append(sample)
+            input_current_time_step = sample
             hidden = torch.stack(new_hidden_current_step)
         samples = torch.stack(samples)
         return samples
