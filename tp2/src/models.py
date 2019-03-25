@@ -361,9 +361,9 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         """
 
         samples = [input]
+        current_input = input
         for time_step in range(generated_seq_len):
-            embeddings = self.embedding(input)
-            x = embeddings[time_step]
+            x = self.embedding(current_input)
             last_hidden = []
             for layer in range(self.num_layers):
                 h = self.gru_cells[layer](x, hidden[layer])
@@ -374,7 +374,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             m = Categorical(probs)
             sample = m.sample()
             samples.append(sample)
-            input = sample
+            current_input = sample
 
         samples = torch.stack(samples)
         return samples
