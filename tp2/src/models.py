@@ -31,32 +31,17 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    #     "
-    #     A
-    #     helper
-    #     function
-    #     for producing N identical layers (each with their own parameters).
-    #
-    #     inputs:
-    #     module: a
-    #     pytorch
-    #     nn.module
-    #     N(int): the
-    #     number
-    #     of
-    #     copies
-    #     of
-    #     that
-    #     module
-    #     to
-    #     return
-    #
-    #
-    # returns:
-    # a
-    # ModuleList
-    # with the copies of the module (the ModuleList is itself also a module)
-    # "
+    """
+    A helper function for producing N identical layers (each with their own parameters).
+
+    inputs:
+        module: a pytorch nn.module
+        N (int): the number of copies of that module to return
+
+
+    returns:
+    a ModuleList with the copies of the module (the ModuleList is itself also a module)
+    """
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
@@ -176,6 +161,30 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
 
 # Problem 2
+class GRUCell(nn.Module):
+    def __init__(self, input_size, output_size, dp_keep_prob=0.35):
+        super(GRUCell, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.w_rzh = nn.Linear(input_size, output_size*3, bias=True)
+        self.u_rz = nn.Linear(output_size, output_size*2, bias=False)
+        self.u_h = nn.Linear(output_size, output_size, bias=False)
+        self.dropout = nn.Dropout(1-dp_keep_prob)
+
+        bound = 1/math.sqrt(self.output_size)
+        for weights in self.parameters():
+            weights.data.uniform_(-bound, bound)
+
+    def forward(self, x, hidden):
+        w_z, w_r, w_h = self.w_rzh(self.dropout(x)).chunk(3, 1)
+        u_z, u_r = self.u_rz(hidden).chunk(2, 1)
+        r = torch.sigmoid(w_r + u_r)
+        z = torch.sigmoid(w_z + u_z)
+        h_tilde = torch.tanh(w_h + self.u_h(r*hidden))
+        h = (1-z)*hidden + z*h_tilde
+        return h
+
+
 class GRU(nn.Module):  # Implement a stacked GRU RNN
     """
     Follow the same instructions as for RNN (above), but use the equations for
@@ -183,25 +192,117 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
     """
 
     def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
+        """
+           emb_size:     The number of units in the input embeddings
+           hidden_size:  The number of hidden units per layer
+           seq_len:      The length of the input sequences
+           vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
+           num_layers:   The depth of the stack (i.e. the number of hidden layers at
+                         each time-step)
+           dp_keep_prob: The probability of *not* dropping out units in the
+                         non-recurrent connections.
+                         Do not apply dropout on recurrent connections.
+        """
         super(GRU, self).__init__()
+        self.seq_len = seq_len
+        self.num_layers = num_layers
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
+        self.vocab_size = vocab_size
+        self.dp_keep_prob = dp_keep_prob
 
-        # TODO ========================
+        self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=emb_size)
+        self.gru_cells = nn.ModuleList()
+        self.gru_cells.append(GRUCell(emb_size,hidden_size))
+        for _ in range(num_layers-1):
+            self.gru_cells.append(GRUCell(hidden_size, hidden_size))
+        self.dropout = nn.Dropout(1-dp_keep_prob)
+        self.linear_out = nn.Linear(hidden_size, vocab_size)
+        self.softmax_out = nn.Softmax()
+
+        self.init_weights_uniform()
+
 
     def init_weights_uniform(self):
-        pass
-
-    # TODO ========================
+        bound = 0.1
+        nn.init.uniform_(self.embedding.weight,-bound, bound)
+        nn.init.uniform_(self.linear_out.weight, -bound, bound)
+        nn.init.zeros_(self.linear_out.bias)
 
     def init_hidden(self):
-        # TODO ========================
-        return  # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+        """
+        This is used for the first mini-batch in an epoch, only.
+        """
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
 
     def forward(self, inputs, hidden):
-        # TODO ========================
+        """
+        Arguments:
+            - inputs: A mini-batch of input sequences, composed of integers that
+                        represent the index of the current token(s) in the vocabulary.
+                            shape: (seq_len, batch_size)
+            - hidden: The initial hidden states for every layer of the stacked RNN.
+                            shape: (num_layers, batch_size, hidden_size)
+
+        Returns:
+            - Logits for the softmax over output tokens at every time-step.
+                  **Do NOT apply softmax to the outputs!**
+                  Pytorch's CrossEntropyLoss function (applied in ptb-lm.py) does
+                  this computation implicitly.
+                        shape: (seq_len, batch_size, vocab_size)
+            - The final hidden states for every layer of the stacked RNN.
+                  These will be used as the initial hidden states for all the
+                  mini-batches in an epoch, except for the first, where the return
+                  value of self.init_hidden will be used.
+                  See the repackage_hiddens function in ptb-lm.py for more details,
+                  if you are curious.
+                        shape: (num_layers, batch_size, hidden_size)
+        """
+        logits = []
+        embeddings = self.embedding(inputs)
+        for time_step in range(self.seq_len):
+            x = embeddings[time_step]
+            last_hidden=[]
+            for layer in range(self.num_layers):
+                h = self.gru_cells[layer](x, hidden[layer])
+                last_hidden.append(h.clone())
+                x = h.clone()
+            hidden = torch.stack(last_hidden)
+            logits.append(self.linear_out(self.dropout(x)))
+        logits=torch.stack(logits)
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
     def generate(self, input, hidden, generated_seq_len):
-        # TODO ========================
+        """
+        Arguments:
+            - input: A mini-batch of input tokens (NOT sequences!)
+                            shape: (batch_size)
+            - hidden: The initial hidden states for every layer of the stacked RNN.
+                            shape: (num_layers, batch_size, hidden_size)
+            - generated_seq_len: The length of the sequence to generate.
+                           Note that this can be different than the length used
+                           for training (self.seq_len)
+        Returns:
+            - Sampled sequences of tokens
+        """
+
+        samples = [input]
+        embeddings = self.embedding(input)
+        for time_step in range(self.seq_len):
+            x = embeddings[time_step]
+            last_hidden = []
+            for layer in range(self.num_layers):
+                h = self.gru_cells[layer](x, hidden[layer])
+                last_hidden.append(h.clone())
+                x = h.clone()
+            hidden = torch.stack(last_hidden)
+            probs = self.softmax_out(self.linear_out(self.dropout(x)))
+            m = Categorical(probs)
+            sample = m.sample()
+            samples.append(sample)
+            input = sample
+
+        samples = torch.stack(samples)
         return samples
 
 
