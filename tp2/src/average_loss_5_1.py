@@ -150,6 +150,6 @@ def run_epoch(model, data):
     return loss_per_step / float(iters)
 
 
-average_loss_per_step = run_epoch(model, train_data).numpy()
+average_loss_per_step = run_epoch(model, valid_data).numpy()
 
 np.save('./average_loss_type_{}_in_length_{}.npy'.format(args.model, args.seq_len), average_loss_per_step)

@@ -5,7 +5,7 @@ import torch
 
 from torch import nn
 
-
+import copy
 # ----------------------------------------------------------------------------------
 # The encodings of elements of the input sequence
 
@@ -147,6 +147,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                   if you are curious.
                         shape: (num_layers, batch_size, hidden_size)
         """
+        all_hiddens_time_steps = []
         logits = []
         embeddings = self.embedding(inputs)
         for time_step in range(self.seq_len):
@@ -159,7 +160,30 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                                                   hidden[i]))
             logits.append(self.v(self.drop_out(new_hidden_current_step[-1])))
             hidden = torch.stack(new_hidden_current_step)
+            all_hiddens_time_steps.append(hidden)
         logits = torch.stack(logits)
+
+
+
+
+
+
+
+        print("Inputs shape : ", inputs.shape)
+        print("Hidden shape : ", hidden.shape)
+        print("All hiddens shape: ", len(all_hiddens_time_steps), " ex: ", all_hiddens_time_steps[-2].shape)
+        print("Hidden after shape : ", hidden.shape)
+
+        loss_grads = []
+        for time_step in range(len(all_hiddens_time_steps) - 1, -1, -1):
+            print("Time step: ", str(time_step))
+            current_hidden = all_hiddens_time_steps[time_step]
+            current_loss_grad = 1 / (1 - current_hidden ** 2)
+            #if len(loss_grads) > 0:
+            #    current_loss_grad *= loss_grads[-1]
+            loss_grads.append(current_loss_grad)
+
+        self.hiddens = all_hiddens_time_steps
 
         return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
@@ -177,7 +201,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         """
         Arguments:
-            - input: A mini-batch of input tokens (NOT sequences!)é
+            - input: A mini-batch of input tokens (NOT sequences!)
             - hidden: The initial hidden states for every layer of the stacked RNN.
                             shape: (num_layers, batch_size, hidden_size)
             - generated_seq_len: The length of the sequence to generate.
