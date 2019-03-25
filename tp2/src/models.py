@@ -390,25 +390,21 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 """
 Implement the MultiHeadedAttention module of the transformer architecture.
 All other necessary modules have already been implemented for you.
-
 We're building a transfomer architecture for next-step prediction tasks, and 
 applying it to sequential language modelling. We use a binary "mask" to specify 
 which time-steps the model can use for the current prediction.
 This ensures that the model only attends to previous time-steps.
-
 The model first encodes inputs using the concatenation of a learned WordEmbedding 
 and a (in our case, hard-coded) PositionalEncoding.
 The word embedding maps a word's one-hot encoding into a dense real vector.
 The positional encoding 'tags' each element of an input sequence with a code that 
 identifies it's position (i.e. time-step).
-
 These encodings of the inputs are then transformed repeatedly using multiple
 copies of a TransformerBlock.
 This block consists of an application of MultiHeadedAttention, followed by a 
 standard MLP; the MLP applies *the same* mapping at every position.
 Both the attention and the MLP are applied with Resnet-style skip connections, 
 and layer normalization.
-
 The complete model consists of the embeddings, the stacked transformer blocks, 
 and a linear layer followed by a softmax.
 """
@@ -456,6 +452,7 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
+        self.n_heads = n_heads
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
@@ -464,6 +461,31 @@ class MultiHeadedAttention(nn.Module):
         # and nn.Dropout
         # ETA: you can also use softmax
         # ETA: you can use the "clones" function we provide.
+        # ETA: you can use masked_fill
+
+        # Linear layers for the Q, K, and V
+        self.w_query = nn.Linear(n_units, n_heads * self.d_k)
+        self.w_keys = nn.Linear(n_units, n_heads * self.d_k)
+        self.w_values = nn.Linear(n_units, n_heads * self.d_k)
+
+        # Initialisation of layers (weights and biases) uniformly in [-k, k]
+        k = np.sqrt(1.0 / n_units)
+        nn.init.uniform_(self.w_query.weight, -k, k)
+        nn.init.uniform_(self.w_keys.weight, -k, k)
+        nn.init.uniform_(self.w_values.weight, -k, k)
+        nn.init.uniform_(self.w_query.bias, -k, k)
+        nn.init.uniform_(self.w_keys.bias, -k, k)
+        nn.init.uniform_(self.w_values.bias, -k, k)
+
+        # Linear layer for the output and initialisation
+        self.output_proj = nn.Linear(n_heads * self.d_k, self.n_units)
+        nn.init.uniform_(self.output_proj.weight, -k, k)
+        nn.init.uniform_(self.output_proj.bias, -k, k)
+
+        # Dropout layer
+        self.scale_factor = np.sqrt(self.d_k)
+        self.dropout = nn.Dropout(dropout)
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -474,7 +496,42 @@ class MultiHeadedAttention(nn.Module):
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
 
-        return  # size: (batch_size, seq_len, self.n_units)
+        # Getting some useful values
+        batch_size = query.shape[0]
+        seq_len = query.shape[1]
+
+        # Project linearly queries, keys and values
+        # All have size of (batch_size, n_heads, seq_len, d_k)
+        queries = self.w_query(query).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        keys = self.w_keys(key).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        values = self.w_values(value).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+
+        # If there is a mask, repeat the mask over the number of heads
+        # (same mask is applied to all heads)
+        # mask has final size of: (batch_size, n_heads, seq_len, seq_len)
+        if mask is not None:
+            mask = 1 - mask
+            mask = mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
+
+        ### Scaled dot product attention
+        scores = torch.matmul(queries, keys.transpose(-1, -2)) / self.scale_factor
+
+        # Apply mask
+        if mask is not None:
+            scores.masked_fill_(mask, -1e9)
+
+        attn = self.dropout(self.softmax(scores))
+
+        # output: (batch_size, n_heads, seq_len, d_k)
+        output = torch.matmul(attn, values)
+
+        # Reshape the output to: (batch_size, seq_len, n_heads x d_k)
+        output = output.transpose(1, 2).contiguous().view(batch_size, seq_len, self.n_heads * self.d_k)
+
+        # Apply the output linear layer and dropout
+        output = self.dropout(self.output_proj(output))
+
+        return output  # size: (batch_size, seq_len, self.n_units)
 
 
 # ----------------------------------------------------------------------------------
@@ -651,3 +708,4 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
+

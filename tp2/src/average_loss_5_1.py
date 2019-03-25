@@ -41,6 +41,7 @@ parser.add_argument('--hidden_size', type=int, default=200,
 parser.add_argument('--dp_keep_prob', type=float, default=0.35,
                     help='dropout *keep* probability. drop_prob = 1-dp_keep_prob \
                     (dp_keep_prob=1 means no dropout)')
+parser.add_argument('--debug', action='store_true')
 
 parser.add_argument('--model_path',
                     help="model path")
