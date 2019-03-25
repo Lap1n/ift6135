@@ -160,7 +160,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                                                   hidden[i]))
             logits.append(self.v(self.drop_out(new_hidden_current_step[-1])))
             hidden = torch.stack(new_hidden_current_step)
-            all_hiddens_time_steps.append(hidden.clone())
+            all_hiddens_time_steps.append(hidden)
         logits = torch.stack(logits)
 
 

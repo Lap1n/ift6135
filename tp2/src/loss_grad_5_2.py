@@ -163,30 +163,6 @@ args = parser.parse_args()
 argsdict = args.__dict__
 argsdict['code_file'] = sys.argv[0]
 
-# Use the model, optimizer, and the flags passed to the script to make the
-# name for the experimental dir
-print("\n########## Setting Up Experiment ######################")
-flags = [flag.lstrip('--').replace('/', '').replace('\\', '') for flag in sys.argv[1:]]
-experiment_path = os.path.join(args.save_dir + '_'.join([argsdict['model'],
-                                                         argsdict['optimizer']]
-                                                        + flags))
-
-# Increment a counter so that previous results with the same args will not
-# be overwritten. Comment out the next four lines if you only want to keep
-# the most recent results.
-i = 0
-while os.path.exists(experiment_path + "_" + str(i)):
-    i += 1
-experiment_path = experiment_path + "_" + str(i)
-
-# Creates an experimental directory and dumps all the args to a text file
-os.mkdir(experiment_path)
-print("\nPutting log in %s" % experiment_path)
-argsdict['save_dir'] = experiment_path
-with open(os.path.join(experiment_path, 'exp_config.txt'), 'w') as f:
-    for key in sorted(argsdict):
-        f.write(key + '    ' + str(argsdict[key]) + '\n')
-
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
 
@@ -408,7 +384,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         # For problem 5.3, you will (instead) need to compute the average loss
         # at each time-step separately.
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
-
+        """
         for t_step, h in enumerate(model.hiddens):
             grad_params = torch.autograd.grad(loss, h, retain_graph=True)
             grad_norm = 0
@@ -417,25 +393,29 @@ def run_epoch(model, data, is_train=False, lr=1.0):
             print("Time step: ", t_step)
             print('loss: %f' % (loss))
             print('sum of gradient norm is: %f' % (grad_norm))
-        exit()
+        """
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
         iters += model.seq_len
         if args.debug:
             print(step, loss)
         if is_train:  # Only update parameters if training
+            grads = []
+
+            def save_grads(grad):
+                acc_grad = 0
+                for batch_index in range(grad.shape[1]):
+                    acc_grad += torch.norm(grad[:, batch_index]).item()
+                grads.append(acc_grad / grad.shape[1])
+
+            for hidden in model.hiddens:
+                hidden.register_hook(save_grads)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
-            if args.optimizer == 'ADAM':
-                optimizer.step()
-            else:
-                for p in model.parameters():
-                    if p.grad is not None:
-                        p.data.add_(-lr, p.grad.data)
-            if step % (epoch_size // 10) == 10:
-                print('step: ' + str(step) + '\t' \
-                      + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
-                      + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
+
+
+
+    exit()
+
     return np.exp(costs / iters), losses
 
 
@@ -457,13 +437,8 @@ elif args.model == 'GRU':
                 vocab_size=vocab_size, num_layers=args.num_layers,
                 dp_keep_prob=args.dp_keep_prob)
 
-
-
-
-
 model.state_dict(torch.load(args.model_path, map_location=device))
 model.to(device)
-
 
 # RUN MODEL ON TRAINING DATA
 train_ppl, train_loss = run_epoch(model, train_data, True, lr)
