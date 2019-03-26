@@ -51,17 +51,12 @@ parser.add_argument('--model_path',
 parser.add_argument('--output_length', default='same',
                     help="Possible values : 'same' or  'double'")
 
-# DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
-# which helps for reproducibility)
-parser.add_argument('--seed', type=int, default=1111,
-                    help='random seed')
 
 args = parser.parse_args()
 argsdict = args.__dict__
 argsdict['code_file'] = sys.argv[0]
 
 # Set the random seed manually for reproducibility.
-torch.manual_seed(args.seed)
 
 # Use the GPU if you have one
 if torch.cuda.is_available():
