@@ -112,7 +112,7 @@ if __name__ == "__main__":
     print(f"JSD : got={jsd.item()}, expected={np.log(2)}")
     print(f"WD : got={wd.item()}, expected={phi}")
 
-    ##
+    ## q1.3
     batch_size = 512
     n_mini_batch = 500
     lambda_grad_penality = 10
@@ -130,4 +130,5 @@ if __name__ == "__main__":
     plt.plot(phis, computed_jsd, label="JSD")
     plt.plot(phis, computed_wd, label="WD")
     plt.legend()
+    plt.savefig('q1.3.png')
     plt.show()
