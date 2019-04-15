@@ -1,15 +1,46 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import argparse
+import sys
+
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
 
-import sys
 sys.path.append("../../../")
 import tp3.src.given_code.classify_svhn as classify_svhn
-# import
+import utils
 
+##############################################################################
+#
+# ARG PARSING AND EXPERIMENT SETUP
+#
+##############################################################################
+parser = argparse.ArgumentParser()
+parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
+parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
+parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
+parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
+parser.add_argument("--lambda_grad_penality", type=float, default=10, help="WD gradient penality")
+parser.add_argument('--seed', type=int, default=1111, help='random seed')
+args = parser.parse_args()
+
+print("########## Setting Up Experiment ######################")
+experiment_path = utils.setup_run_folder(args, run_name="gan")
+
+###############################################################################
+#
+# LOADING & PROCESSING
+#
+###############################################################################
+train, valid, test = classify_svhn.get_data_loader("svhn", args.batch_size)
+
+
+###############################################################################
+#
+# MODEL SETUP
+#
+###############################################################################
 class Generator(nn.Module):
     def __init__(self, latent_dim=100):
         super(Generator, self).__init__()
@@ -91,36 +122,13 @@ class Discriminator(nn.Module):
         return self.model(x)
 
 
-def get_dims(n):
-    a = int(np.sqrt(n))
-    while a > 1:
-        if n - int(n / a) * a == 0:
-            return a, int(n / a)
-        a -= 1
-    return 1, n
-
-
-def view_samples(samples):
-    n = samples.size()[0]
-    nrows, ncols = get_dims(n)
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols,
-                             sharey=True, sharex=True)
-    imgs = [samples[i, :, :, :].detach().cpu().numpy().transpose((1, 2, 0)) for i in range(n)]
-    for ax, img in zip(axes.flatten(), imgs):
-        ax.axis('off')
-        img = ((img - img.min()) * 255 / (img.max() - img.min())).astype(np.uint8)
-        ax.set_adjustable('box-forced')
-        ax.imshow(img, aspect='equal')
-
-    plt.subplots_adjust(wspace=0, hspace=0)
-    return fig
-
-
+# CUDA
 def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 cuda = True if torch.cuda.is_available() else False
+Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 generator = Generator().to(get_device())
 discriminator = Discriminator().to(get_device())
@@ -128,10 +136,8 @@ discriminator = Discriminator().to(get_device())
 optimizer_G = optim.Adam(generator.parameters())
 optimizer_D = optim.Adam(discriminator.parameters())
 
-Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-
-# small modifi from q1
+# small modif from q1
 def compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality):
     a = torch.rand(x_real.size()[0], 1, 1, 1).to(get_device())
     a.expand_as(x_real)
@@ -151,29 +157,26 @@ def get_wd(D, x_real, x_fake, lambda_grad_penality=10):
     return D(x_real).mean() - D(x_fake).mean() - compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality)
 
 
-n_epoch = 1
-latent_dim = 100
-batch_size = 32
-lambda_grad_penality = 10
-n_critic = 10
-view_samples_interval = 200
-
-train, valid, test = classify_svhn.get_data_loader("svhn", batch_size)
-
-for epoch in range(n_epoch):
+###############################################################################
+#
+# RUN MAIN LOOP (TRAIN AND VAL)
+#
+###############################################################################
+print("########## Running Main Loop ##########################")
+for epoch in range(args.n_epochs):
     for i, (x_real, y_real) in enumerate(train):
         if cuda:
             x_real = x_real.to(get_device())
         optimizer_D.zero_grad()
-        z = Tensor(batch_size, latent_dim).normal_()
+        z = Tensor(args.batch_size, args.latent_dim).normal_()
         x_fake = generator(z)
 
-        wd = get_wd(discriminator, x_real, x_fake, lambda_grad_penality)
+        wd = get_wd(discriminator, x_real, x_fake, args.lambda_grad_penality)
         wd.backward(Tensor([-1]))
         optimizer_D.step()
 
         # update the generator avec discriminator has trained for "n_critic" steps
-        if i % n_critic == 0:
+        if i % args.n_critic == 0:
             optimizer_G.zero_grad()
             x_fake = generator(z)
             generator_loss = - torch.mean(discriminator(x_fake))
@@ -181,6 +184,5 @@ for epoch in range(n_epoch):
             optimizer_G.step()
             print(f"Epoch={epoch}, i={i}, wd={wd}, g_loss={generator_loss}")
 
-        if i % view_samples_interval == 0:
-            fig = view_samples(x_fake)
-            plt.savefig(f"q3_{epoch}_{i}.png")
+        if i % args.sample_interval == 0:
+            utils.make_samples_fig_and_save(x_fake, experiment_path, epoch, i)
