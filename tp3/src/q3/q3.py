@@ -22,6 +22,7 @@ parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality 
 parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
 parser.add_argument("--lambda_grad_penality", type=float, default=10, help="WD gradient penality")
+parser.add_argument("--print_interval", type=int, default=200, help="print_interval")
 parser.add_argument('--seed', type=int, default=1111, help='random seed')
 args = parser.parse_args()
 
@@ -154,6 +155,10 @@ def compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality):
 
 
 def get_wd(D, x_real, x_fake, lambda_grad_penality=10):
+    # real_valid = D(x_real).mean()
+    # fake_valid = D(x_fake).mean()
+    # gp = compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality)
+    # print(f"real_valid={real_valid}, fake_valid={fake_valid}, gp={gp}")
     return D(x_real).mean() - D(x_fake).mean() - compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality)
 
 
@@ -168,7 +173,7 @@ for epoch in range(args.n_epochs):
         if cuda:
             x_real = x_real.to(get_device())
         optimizer_D.zero_grad()
-        z = Tensor(args.batch_size, args.latent_dim).normal_()
+        z = Tensor(x_real.size()[0], args.latent_dim).normal_()
         x_fake = generator(z)
 
         wd = get_wd(discriminator, x_real, x_fake, args.lambda_grad_penality)
@@ -182,6 +187,8 @@ for epoch in range(args.n_epochs):
             generator_loss = - torch.mean(discriminator(x_fake))
             generator_loss.backward()
             optimizer_G.step()
+
+        if i % args.print_interval == 0:
             print(f"Epoch={epoch}, i={i}, wd={wd}, g_loss={generator_loss}")
 
         if i % args.sample_interval == 0:
