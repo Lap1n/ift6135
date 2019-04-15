@@ -98,6 +98,8 @@ def WassersteinDistance(p, q, n_mini_batch=1000, lambda_grad_penality=10):
 WD = WassersteinDistance
 
 if __name__ == "__main__":
+    import sys
+    sys.path.append("../../../")
     from tp3.src.given_code.samplers import distribution1
     import numpy as np
     import matplotlib.pyplot as plt
