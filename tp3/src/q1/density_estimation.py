@@ -34,7 +34,8 @@ plt.show()
 ############### estimate the density of distribution4
 
 #######--- INSERT YOUR CODE BELOW ---#######
-
+import sys
+sys.path.append("../../../")
 from tp3.src.given_code.samplers import distribution3, distribution4
 from q1 import JSD
 
