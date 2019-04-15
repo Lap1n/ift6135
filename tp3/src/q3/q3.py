@@ -16,6 +16,9 @@ import utils
 #
 ##############################################################################
 parser = argparse.ArgumentParser()
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
+parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
@@ -42,85 +45,152 @@ train, valid, test = classify_svhn.get_data_loader("svhn", args.batch_size)
 # MODEL SETUP
 #
 ###############################################################################
+
+# class Generator(nn.Module):
+#     def __init__(self, latent_dim=100):
+#         super(Generator, self).__init__()
+#
+#         # deconv formula : stride * (input -1) + kernel_size  - 2 * padding
+#
+#         class View(nn.Module):
+#             def __init__(self):
+#                 super(View, self).__init__()
+#
+#             def forward(self, x):
+#                 return x.view(-1, 512, 3, 3)
+#
+#         self.model = nn.Sequential(
+#             nn.Linear(latent_dim, 512 * 3 * 3),  # -1xlatent_dim --> -1x512x3x3
+#             View(),
+#             nn.BatchNorm2d(512),
+#             nn.ReLU(),
+#             nn.ConvTranspose2d(in_channels=512, out_channels=512, kernel_size=3, stride=2, padding=1),
+#             # -1x512x3x3 --> -1x512x5x5
+#             nn.BatchNorm2d(512),
+#             nn.ReLU(),
+#             nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=3, stride=2, padding=1),
+#             # -1x512x5x5 --> -1x256x9x9
+#             nn.BatchNorm2d(256),
+#             nn.ReLU(),
+#             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=2, padding=1),
+#             # -1x256x9x9 --> -1x128x17x17
+#             nn.BatchNorm2d(128),
+#             nn.ReLU(),
+#             nn.ConvTranspose2d(in_channels=128, out_channels=3, kernel_size=4, stride=2, padding=2),
+#             # -1x128x9x9 --> -1x3x32x32
+#             nn.Tanh()
+#         )
+#
+#     def forward(self, z):
+#         return self.model(z)
+#
+#
+# class Discriminator(nn.Module):
+#     def __init__(self):
+#         super(Discriminator, self).__init__()
+#
+#         class View(nn.Module):
+#             def __init__(self):
+#                 super(View, self).__init__()
+#
+#             def forward(self, x):
+#                 return x.view(-1, 512 * 3 * 3)
+#
+#         # conv formula : (input + 2*padding - kernel_size)/stride + 1
+#         self.model = nn.Sequential(
+#             # -1x3x32x32 --> -1x64x28x28
+#             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=0),
+#             nn.BatchNorm2d(64),
+#             nn.ReLU(),
+#             # -1x64x28x28 --> -1x128x24x24
+#             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=1, padding=0),
+#             nn.BatchNorm2d(128),
+#             nn.ReLU(),
+#             # -1x128x24x24--> -1x256x20x20
+#             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5, stride=1, padding=0),
+#             nn.BatchNorm2d(256),
+#             nn.ReLU(),
+#             # -1x256x20x20 --> -1x512x16x16
+#             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=5, stride=1, padding=0),
+#             nn.BatchNorm2d(512),
+#             nn.ReLU(),
+#             # -1x512x16x16 --> -1x512x3x3
+#             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=5, stride=4, padding=0),
+#             nn.BatchNorm2d(512),
+#             nn.ReLU(),
+#             View(),
+#             nn.Linear(512 * 3 * 3, 1),
+#             nn.Sigmoid()
+#         )
+#
+#     def forward(self, x):
+#         return self.model(x)
+
+def weights_init_normal(m):
+    classname = m.__class__.__name__
+    if classname.find("Conv") != -1:
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find("BatchNorm2d") != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
+
+
 class Generator(nn.Module):
     def __init__(self, latent_dim=100):
         super(Generator, self).__init__()
 
-        # deconv formula : stride * (input -1) + kernel_size  - 2 * padding
+        self.init_size = 32 // 4
+        self.l1 = nn.Sequential(nn.Linear(latent_dim, 128 * self.init_size ** 2))
 
-        class View(nn.Module):
-            def __init__(self):
-                super(View, self).__init__()
-
-            def forward(self, x):
-                return x.view(-1, 512, 3, 3)
-
-        self.model = nn.Sequential(
-            nn.Linear(latent_dim, 512 * 3 * 3),  # -1xlatent_dim --> -1x512x3x3
-            View(),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.ConvTranspose2d(in_channels=512, out_channels=512, kernel_size=3, stride=2, padding=1),
-            # -1x512x3x3 --> -1x512x5x5
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=3, stride=2, padding=1),
-            # -1x512x5x5 --> -1x256x9x9
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=2, padding=1),
-            # -1x256x9x9 --> -1x128x17x17
+        self.conv_blocks = nn.Sequential(
             nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.ConvTranspose2d(in_channels=128, out_channels=3, kernel_size=4, stride=2, padding=2),
-            # -1x128x9x9 --> -1x3x32x32
-            nn.Tanh()
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.BatchNorm2d(128, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, 3, 3, stride=1, padding=1),
+            nn.Tanh(),
         )
 
     def forward(self, z):
-        return self.model(z)
+        out = self.l1(z)
+        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
+        img = self.conv_blocks(out)
+        return img
 
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        class View(nn.Module):
-            def __init__(self):
-                super(View, self).__init__()
+        def discriminator_block(in_filters, out_filters, bn=True):
+            block = [nn.Conv2d(in_filters, out_filters, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(0.25)]
+            if bn:
+                block.append(nn.BatchNorm2d(out_filters, 0.8))
+            return block
 
-            def forward(self, x):
-                return x.view(-1, 512 * 3 * 3)
-
-        # conv formula : (input + 2*padding - kernel_size)/stride + 1
         self.model = nn.Sequential(
-            # -1x3x32x32 --> -1x64x28x28
-            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=0),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            # -1x64x28x28 --> -1x128x24x24
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=1, padding=0),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            # -1x128x24x24--> -1x256x20x20
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5, stride=1, padding=0),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            # -1x256x20x20 --> -1x512x16x16
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=5, stride=1, padding=0),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            # -1x512x16x16 --> -1x512x3x3
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=5, stride=4, padding=0),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            View(),
-            nn.Linear(512 * 3 * 3, 1),
-            nn.Sigmoid()
+            *discriminator_block(3, 16, bn=False),
+            *discriminator_block(16, 32),
+            *discriminator_block(32, 64),
+            *discriminator_block(64, 128),
         )
 
-    def forward(self, x):
-        return self.model(x)
+        # The height and width of downsampled image
+        ds_size = 32 // 2 ** 4
+        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
+
+    def forward(self, img):
+        out = self.model(img)
+        out = out.view(out.shape[0], -1)
+        validity = self.adv_layer(out)
+
+        return validity
+
 
 
 # CUDA
@@ -131,11 +201,14 @@ def get_device():
 cuda = True if torch.cuda.is_available() else False
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-generator = Generator().to(get_device())
+generator = Generator(latent_dim=args.latent_dim).to(get_device())
 discriminator = Discriminator().to(get_device())
 
-optimizer_G = optim.Adam(generator.parameters())
-optimizer_D = optim.Adam(discriminator.parameters())
+generator.apply(weights_init_normal)
+discriminator.apply(weights_init_normal)
+
+optimizer_G = optim.Adam(generator.parameters(),  lr=args.lr, betas=(args.b1, args.b2))
+optimizer_D = optim.Adam(discriminator.parameters(), lr=args.lr, betas=(args.b1, args.b2))
 
 
 # small modif from q1
