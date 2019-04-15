@@ -31,6 +31,7 @@ args = parser.parse_args()
 
 print("########## Setting Up Experiment ######################")
 experiment_path = utils.setup_run_folder(args, run_name="gan")
+torch.manual_seed(args.seed)
 
 ###############################################################################
 #
