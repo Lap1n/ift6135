@@ -5,7 +5,9 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
 
-import given_code.classify_svhn as classify_svhn
+import sys
+sys.path.append("../../../")
+import tp3.src.given_code.classify_svhn as classify_svhn
 # import
 
 class Generator(nn.Module):
