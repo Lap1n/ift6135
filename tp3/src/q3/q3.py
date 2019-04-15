@@ -5,8 +5,8 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
 
-import tp3.src.given_code.classify_svhn as classify_svhn
-
+import given_code.classify_svhn as classify_svhn
+# import
 
 class Generator(nn.Module):
     def __init__(self, latent_dim=100):
