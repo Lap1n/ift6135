@@ -5,6 +5,7 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 
 sys.path.append("../../../")
 import tp3.src.given_code.classify_svhn as classify_svhn
@@ -32,6 +33,7 @@ args = parser.parse_args()
 print("########## Setting Up Experiment ######################")
 experiment_path = utils.setup_run_folder(args, run_name="gan")
 utils.setup_logging(experiment_path)
+csv_logger = utils.CsvLogger(filepath = experiment_path)
 torch.manual_seed(args.seed)
 
 ###############################################################################
@@ -47,87 +49,6 @@ train, valid, test = classify_svhn.get_data_loader("svhn", args.batch_size)
 # MODEL SETUP
 #
 ###############################################################################
-print("")
-# class Generator(nn.Module):
-#     def __init__(self, latent_dim=100):
-#         super(Generator, self).__init__()
-#
-#         # deconv formula : stride * (input -1) + kernel_size  - 2 * padding
-#
-#         class View(nn.Module):
-#             def __init__(self):
-#                 super(View, self).__init__()
-#
-#             def forward(self, x):
-#                 return x.view(-1, 512, 3, 3)
-#
-#         self.model = nn.Sequential(
-#             nn.Linear(latent_dim, 512 * 3 * 3),  # -1xlatent_dim --> -1x512x3x3
-#             View(),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(in_channels=512, out_channels=512, kernel_size=3, stride=2, padding=1),
-#             # -1x512x3x3 --> -1x512x5x5
-#             nn.BatchNorm2d(512),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=3, stride=2, padding=1),
-#             # -1x512x5x5 --> -1x256x9x9
-#             nn.BatchNorm2d(256),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=2, padding=1),
-#             # -1x256x9x9 --> -1x128x17x17
-#             nn.BatchNorm2d(128),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(in_channels=128, out_channels=3, kernel_size=4, stride=2, padding=2),
-#             # -1x128x9x9 --> -1x3x32x32
-#             nn.Tanh()
-#         )
-#
-#     def forward(self, z):
-#         return self.model(z)
-#
-#
-# class Discriminator(nn.Module):
-#     def __init__(self):
-#         super(Discriminator, self).__init__()
-#
-#         class View(nn.Module):
-#             def __init__(self):
-#                 super(View, self).__init__()
-#
-#             def forward(self, x):
-#                 return x.view(-1, 512 * 3 * 3)
-#
-#         # conv formula : (input + 2*padding - kernel_size)/stride + 1
-#         self.model = nn.Sequential(
-#             # -1x3x32x32 --> -1x64x28x28
-#             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=0),
-#             nn.BatchNorm2d(64),
-#             nn.ReLU(),
-#             # -1x64x28x28 --> -1x128x24x24
-#             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=1, padding=0),
-#             nn.BatchNorm2d(128),
-#             nn.ReLU(),
-#             # -1x128x24x24--> -1x256x20x20
-#             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5, stride=1, padding=0),
-#             nn.BatchNorm2d(256),
-#             nn.ReLU(),
-#             # -1x256x20x20 --> -1x512x16x16
-#             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=5, stride=1, padding=0),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU(),
-#             # -1x512x16x16 --> -1x512x3x3
-#             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=5, stride=4, padding=0),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU(),
-#             View(),
-#             nn.Linear(512 * 3 * 3, 1),
-#             nn.Sigmoid()
-#         )
-#
-#     def forward(self, x):
-#         return self.model(x)
-
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
@@ -229,8 +150,6 @@ def compute_gradient_penality(D, x_real, x_fake):
     gradient_penalty = ((grads.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
-cross_entropy_loss = nn.CrossEntropyLoss()
-
 ###############################################################################
 #
 # RUN MAIN LOOP (TRAIN AND VAL)
@@ -247,15 +166,12 @@ for epoch in range(args.n_epochs):
 
         y_real = discriminator(x_real)
         y_fake = discriminator(x_fake)
-        gradient_penality = args.lambda_grad_penality * compute_gradient_penality(D, x_real, x_fake)
+        gradient_penality = args.lambda_grad_penality * compute_gradient_penality(discriminator, x_real, x_fake)
         wd = - y_real.mean() + y_fake.mean()
         wd_loss =  wd + gradient_penality
         wd_loss.backward()
         optimizer_D.step()
 
-        # cross entropy loss for tracking
-        valid = Tensor(x_real.size()[0], 1).fill_(1.0)
-        cross_entropy_loss_outputs = cross_entropy_loss(y_real, valid)
 
         # update the generator avec discriminator has trained for "n_critic" steps
         if i % args.n_critic == 0:
@@ -270,6 +186,7 @@ for epoch in range(args.n_epochs):
             utils.make_samples_fig_and_save(x_fake, experiment_path, epoch, i)
 
         if i % args.log_interval == 0 :
+            csv_logger.write(epoch, i, wd.item(), gradient_penality.item(), wd_loss.item(), generator_loss.item())
             print(f"Epoch={epoch}, i={i}, wd={wd_loss}, g_loss={generator_loss}")
             utils.log(epoch, i, wd_loss, generator_loss)
     utils.save_generator_and_discriminator(g=generator, d=discriminator)
