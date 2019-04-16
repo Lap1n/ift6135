@@ -189,7 +189,7 @@ for epoch in range(args.n_epochs):
             csv_logger.write(epoch, i, wd.item(), gradient_penality.item(), wd_loss.item(), generator_loss.item())
             print(f"Epoch={epoch}, i={i}, wd={wd_loss}, g_loss={generator_loss}")
             utils.log(epoch, i, wd_loss, generator_loss)
-    utils.save_generator_and_discriminator(g=generator, d=discriminator)
+    utils.save_generator_and_discriminator(experiment_path, g=generator, d=discriminator)
 # train for as much as much as possible
 # plt D loss
 # remove the interpolate
