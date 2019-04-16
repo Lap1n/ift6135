@@ -22,15 +22,16 @@ parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of firs
 parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=32, help="size of the batches")
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
-parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
+parser.add_argument("--n_critic", type=int, default=10, help="number of training steps for discriminator per iter")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
 parser.add_argument("--lambda_grad_penality", type=float, default=10, help="WD gradient penality")
-parser.add_argument("--print_interval", type=int, default=200, help="print_interval")
+parser.add_argument("--log_interval", type=int, default=100, help="print_interval")
 parser.add_argument('--seed', type=int, default=1111, help='random seed')
 args = parser.parse_args()
 
 print("########## Setting Up Experiment ######################")
 experiment_path = utils.setup_run_folder(args, run_name="gan")
+utils.setup_logging(experiment_path)
 torch.manual_seed(args.seed)
 
 ###############################################################################
@@ -46,7 +47,7 @@ train, valid, test = classify_svhn.get_data_loader("svhn", args.batch_size)
 # MODEL SETUP
 #
 ###############################################################################
-
+print("")
 # class Generator(nn.Module):
 #     def __init__(self, latent_dim=100):
 #         super(Generator, self).__init__()
@@ -213,27 +214,24 @@ optimizer_D = optim.Adam(discriminator.parameters(), lr=args.lr, betas=(args.b1,
 
 
 # small modif from q1
-def compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality):
-    a = torch.rand(x_real.size()[0], 1, 1, 1).to(get_device())
+def compute_gradient_penality(D, x_real, x_fake):
+    a = Tensor(x_real.size()[0], 1, 1, 1).uniform_(0,1)
     a.expand_as(x_real)
     a.requires_grad = True
     z = a * x_real + (1 - a) * x_fake
     D_z = D(z)
     grads = autograd.grad(outputs=D_z,
                           inputs=z,
-                          grad_outputs=torch.ones(D_z.size()).to(get_device()),
+                          grad_outputs=torch.ones(D_z.size(), device=get_device()),
                           create_graph=True,
-                          retain_graph=True)[0]
-    gradient_penalty = lambda_grad_penality * ((grads.norm(2, dim=1) - 1) ** 2).mean()
+                          retain_graph=True,
+                          only_inputs=True,)[0]
+    gradient_penalty = ((grads.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
 
 def get_wd(D, x_real, x_fake, lambda_grad_penality=10):
-    # real_valid = D(x_real).mean()
-    # fake_valid = D(x_fake).mean()
-    # gp = compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality)
-    # print(f"real_valid={real_valid}, fake_valid={fake_valid}, gp={gp}")
-    return D(x_real).mean() - D(x_fake).mean() - compute_gradient_penality(D, x_real, x_fake, lambda_grad_penality)
+    return D(x_real).mean() - D(x_fake).mean() - lambda_grad_penality * compute_gradient_penality(D, x_real, x_fake)
 
 
 ###############################################################################
@@ -250,20 +248,29 @@ for epoch in range(args.n_epochs):
         z = Tensor(x_real.size()[0], args.latent_dim).normal_()
         x_fake = generator(z)
 
-        wd = get_wd(discriminator, x_real, x_fake, args.lambda_grad_penality)
-        wd.backward(Tensor([-1]))
+        wd_loss = - get_wd(discriminator, x_real, x_fake, args.lambda_grad_penality)
+        wd_loss.backward()
         optimizer_D.step()
 
         # update the generator avec discriminator has trained for "n_critic" steps
         if i % args.n_critic == 0:
             optimizer_G.zero_grad()
+            optimizer_D.zero_grad()
             x_fake = generator(z)
             generator_loss = - torch.mean(discriminator(x_fake))
             generator_loss.backward()
             optimizer_G.step()
 
-        if i % args.print_interval == 0:
-            print(f"Epoch={epoch}, i={i}, wd={wd}, g_loss={generator_loss}")
-
         if i % args.sample_interval == 0:
             utils.make_samples_fig_and_save(x_fake, experiment_path, epoch, i)
+
+        if i % args.log_interval == 0 :
+            print(f"Epoch={epoch}, i={i}, wd={wd_loss}, g_loss={generator_loss}")
+            utils.log(epoch, i, wd_loss, generator_loss)
+
+
+
+# train for as much as much as possible
+# plt D loss
+# remove the interpolate
+# make critic 5

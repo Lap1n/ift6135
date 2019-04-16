@@ -3,7 +3,11 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
+import torch
 
+def get_device():
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 ## FOLDER STUFF
 def get_directory_name_with_number(base_path):
@@ -16,6 +20,7 @@ def get_directory_name_with_number(base_path):
 def setup_run_folder(args, run_name):
     argsdict = args.__dict__
     argsdict['code_file'] = sys.argv[0]
+    argsdict['device'] = get_device()
     runs_directory = "runs"
     if not os.path.exists(runs_directory):
         os.makedirs(runs_directory)
@@ -65,3 +70,16 @@ def savefig(experiment_path, fig, epoch, iteration):
 def make_samples_fig_and_save(samples, experiment_path, epoch, iteration):
     fig = view_samples(samples)
     savefig(experiment_path, fig, epoch, iteration)
+    plt.close()
+
+
+###########
+# LOGGING
+###########
+def setup_logging(experiment_path):
+    filename = os.path.join(experiment_path, 'logs.log')
+    logging.basicConfig(filename=filename, format='%(asctime)s - %(message)s', level=logging.INFO)
+
+def log(epoch, iteration, wd, g_loss):
+    logging.info(f"epoch={epoch}, i={iteration}, wd={wd}, g_loss={g_loss}")
+
