@@ -184,7 +184,7 @@ class Discriminator(nn.Module):
 
         # The height and width of downsampled image
         ds_size = 32 // 2 ** 4
-        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
+        self.adv_layer = nn.Linear(128 * ds_size ** 2, 1)
 
     def forward(self, img):
         out = self.model(img)
@@ -229,10 +229,7 @@ def compute_gradient_penality(D, x_real, x_fake):
     gradient_penalty = ((grads.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
-
-def get_wd(D, x_real, x_fake, lambda_grad_penality=10):
-    return D(x_real).mean() - D(x_fake).mean() - lambda_grad_penality * compute_gradient_penality(D, x_real, x_fake)
-
+cross_entropy_loss = nn.CrossEntropyLoss()
 
 ###############################################################################
 #
@@ -248,9 +245,17 @@ for epoch in range(args.n_epochs):
         z = Tensor(x_real.size()[0], args.latent_dim).normal_()
         x_fake = generator(z)
 
-        wd_loss = - get_wd(discriminator, x_real, x_fake, args.lambda_grad_penality)
+        y_real = discriminator(x_real)
+        y_fake = discriminator(x_fake)
+        gradient_penality = args.lambda_grad_penality * compute_gradient_penality(D, x_real, x_fake)
+        wd = - y_real.mean() + y_fake.mean()
+        wd_loss =  wd + gradient_penality
         wd_loss.backward()
         optimizer_D.step()
+
+        # cross entropy loss for tracking
+        valid = Tensor(x_real.size()[0], 1).fill_(1.0)
+        cross_entropy_loss_outputs = cross_entropy_loss(y_real, valid)
 
         # update the generator avec discriminator has trained for "n_critic" steps
         if i % args.n_critic == 0:

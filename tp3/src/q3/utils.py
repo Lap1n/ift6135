@@ -1,5 +1,6 @@
 import os
 import sys
+import csv
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -92,4 +93,42 @@ def setup_logging(experiment_path):
 
 def log(epoch, iteration, wd, g_loss):
     logging.info(f"epoch={epoch}, i={iteration}, wd={wd}, g_loss={g_loss}")
+
+#CSV LOGGER
+class CsvLogger:
+    def __init__(self, filepath='./', filename='results.csv', data=None):
+        self.log_path = filepath
+        self.log_name = filename
+        self.csv_path = os.path.join(self.log_path, self.log_name)
+        self.fieldsnames = ['epoch', 'iteration', 'wd', 'gradient_penality', "wd_loss", "generator_loss", "cross_entropy_loss"]
+
+        with open(self.csv_path, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=self.fieldsnames)
+            writer.writeheader()
+
+        self.data = {}
+        for field in self.fieldsnames:
+            self.data[field] = []
+        if data is not None:
+            for d in data:
+                d_num = {}
+                for key in d:
+                    d_num[key] = float(d[key]) if key != 'epoch' else int(d[key])
+                self.write(d_num)
+
+    def write(self, epoch, iteration, wd, gradient_penality, wd_loss, generator_loss, cross_entropy_loss):
+        self._write({"epoch":epoch,
+                    "iteration":iteration,
+                    "wd":wd,
+                    "gradient_penality":gradient_penality,
+                    "wd_loss":wd_loss,
+                    "generator_loss":generator_loss,
+                    "cross_entropy_loss":cross_entropy_loss})
+
+    def _write(self, data):
+        for k in self.data:
+            self.data[k].append(data[k])
+        with open(self.csv_path, 'a') as f:
+            writer = csv.DictWriter(f, fieldnames=self.fieldsnames)
+            writer.writerow(data)
 
