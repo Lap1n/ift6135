@@ -80,7 +80,7 @@ def make_samples_fig_and_save(samples, experiment_path, epoch, iteration):
 def save_model(model, model_name, experiment_path):
     torch.save(model.state_dict(), os.path.join(experiment_path, f'{model_name}.pt'))
 
-def save_generator_and_discriminator(g, d, experiment_path):
+def save_generator_and_discriminator(experiment_path, g, d):
     save_model(g, "generator", experiment_path)
     save_model(d, "discriminator", experiment_path)
 
