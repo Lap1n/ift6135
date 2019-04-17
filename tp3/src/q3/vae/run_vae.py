@@ -9,7 +9,8 @@ import torch
 from torch.optim import Adam
 
 from given_code.classify_svhn import get_data_loader
-from q3.vae.vae import VAE
+from q3.vae.models.conv_vae import ConvVAE
+from q3.vae.models.vae import VAE
 from q3.vae.vae_utils import load_config, fix_seed
 from q3.vae.vae_trainer import VAETrainer
 
@@ -66,15 +67,21 @@ if __name__ == '__main__':
     train_loader, valid_loader, test_loader = get_data_loader(
         dataset_location=args.train_dataset_path,
         batch_size=cfg.TRAIN.BATCH_SIZE)
-    model = VAE(label=cfg.CONFIG_NAME, image_size=cfg.IMAGE_SIZE,
-                channel_num=cfg.MODEL.CHANNEL_NUM,
-                kernel_num=cfg.MODEL.KERNEL_NUM,
-                z_size=cfg.MODEL.LATENT_SIZE)
+    # model = VAE(label=cfg.CONFIG_NAME, image_size=cfg.IMAGE_SIZE,
+    #             channel_num=cfg.MODEL.CHANNEL_NUM,
+    #             kernel_num=cfg.MODEL.KERNEL_NUM,
+    #             z_size=cfg.MODEL.LATENT_SIZE)
+    model = ConvVAE(
+        width=cfg.IMAGE_SIZE, height=cfg.IMAGE_SIZE,
+        nChannels=cfg.MODEL.CHANNEL_NUM,
+        hidden_size=500,
+        z_dim=cfg.MODEL.LATENT_SIZE, binary=True, nFilters=cfg.MODEL.KERNEL_NUM
+    )
 
     optimizer = Adam(model.parameters(), lr=hyper_params["LR"])
     trainer = VAETrainer(model=model, optimizer=optimizer, cfg=cfg,
                          train_loader=train_loader, valid_loader=valid_loader,
-                         device=device, output_dir=args.results_dir,
+                         device=device, output_dir=cfg.OUTPUT_DIR,
                          hyper_params=hyper_params,
                          max_patience=cfg.TRAIN.MAX_PATIENCE)
     trainer.fit(hyper_params)

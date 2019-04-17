@@ -62,7 +62,7 @@ class VAE(nn.Module):
 
         # return the parameters of distribution of q given x and the
         # reconstructed image.
-        return (mean, logvar), x_reconstructed
+        return x_reconstructed, mean, logvar
 
     # ==============
     # VAE components
