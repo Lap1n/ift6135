@@ -32,9 +32,7 @@ class Generator_dcgan0(nn.Module):
 class Generator_dcgan1(nn.Module):
     def __init__(self, latent_dim=100):
         super(Generator_dcgan1, self).__init__()
-        self.channels = 64
-        self.init_size = 4
-        self.l1 = nn.Sequential(nn.Linear(latent_dim, 512 * self.init_size ** 2))
+        self.l1 = nn.Sequential(nn.Linear(latent_dim, 512 * 4 * 4))
 
         self.conv_blocks = nn.Sequential(
             nn.BatchNorm2d(512),
@@ -47,7 +45,7 @@ class Generator_dcgan1(nn.Module):
             nn.BatchNorm2d(128, 0.8),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Upsample(scale_factor=2),  # 32x32
-            nn.Conv2d(128, 3, 3, stride=1, padding=1),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
             nn.BatchNorm2d(64, 0.8),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, 3, 3, stride=1, padding=1),
@@ -56,7 +54,7 @@ class Generator_dcgan1(nn.Module):
 
     def forward(self, z):
         out = self.l1(z)
-        out = out.view(out.shape[0], 512, self.init_size, self.init_size)
+        out = out.view(out.shape[0], 512, 4, 4)
         img = self.conv_blocks(out)
         return img
 
