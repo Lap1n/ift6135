@@ -128,7 +128,7 @@ for epoch in range(args.n_epochs):
 
         if iteration % args.sample_interval == 0:
             x_sample = generator(z_sample)
-            utils.make_samples_fig_and_save(x_sample, experiment_path, epoch, iterationsamp)
+            utils.make_samples_fig_and_save(x_sample, experiment_path, epoch, iteration)
 
         if iteration % args.log_interval == 0 :
             csv_logger.write(iteration, epoch, wd.item(), gradient_penality.item(), wd_loss.item(), generator_loss.item())
