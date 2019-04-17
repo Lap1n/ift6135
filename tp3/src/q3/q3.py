@@ -10,7 +10,7 @@ import torch.nn.functional as F
 sys.path.append("../../../")
 import tp3.src.given_code.classify_svhn as classify_svhn
 import utils
-
+from models import discriminator_models, generator_models
 ##############################################################################
 #
 # ARG PARSING AND EXPERIMENT SETUP
@@ -27,6 +27,8 @@ parser.add_argument("--n_critic", type=int, default=10, help="number of training
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
 parser.add_argument("--lambda_grad_penality", type=float, default=10, help="WD gradient penality")
 parser.add_argument("--log_interval", type=int, default=100, help="print_interval")
+parser.add_argument("--discriminator_model", type=int, default=0, help="discriminator_model")
+parser.add_argument("--generator_model", type=int, default=0, help="generator_model")
 parser.add_argument('--seed', type=int, default=1111, help='random seed')
 args = parser.parse_args()
 
@@ -43,7 +45,7 @@ torch.manual_seed(args.seed)
 ###############################################################################
 train, valid, test = classify_svhn.get_data_loader("svhn", args.batch_size)
 
-
+print("len", len(train))
 ###############################################################################
 #
 # MODEL SETUP
@@ -57,65 +59,6 @@ def weights_init_normal(m):
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
-
-class Generator(nn.Module):
-    def __init__(self, latent_dim=100):
-        super(Generator, self).__init__()
-
-        self.init_size = 32 // 4
-        self.l1 = nn.Sequential(nn.Linear(latent_dim, 128 * self.init_size ** 2))
-
-        self.conv_blocks = nn.Sequential(
-            nn.BatchNorm2d(128),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 128, 3, stride=1, padding=1),
-            nn.BatchNorm2d(128, 0.8),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, 3, stride=1, padding=1),
-            nn.BatchNorm2d(64, 0.8),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 3, 3, stride=1, padding=1),
-            nn.Tanh(),
-        )
-
-    def forward(self, z):
-        out = self.l1(z)
-        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.conv_blocks(out)
-        return img
-
-
-class Discriminator(nn.Module):
-    def __init__(self):
-        super(Discriminator, self).__init__()
-
-        def discriminator_block(in_filters, out_filters, bn=True):
-            block = [nn.Conv2d(in_filters, out_filters, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(0.25)]
-            if bn:
-                block.append(nn.BatchNorm2d(out_filters, 0.8))
-            return block
-
-        self.model = nn.Sequential(
-            *discriminator_block(3, 16, bn=False),
-            *discriminator_block(16, 32),
-            *discriminator_block(32, 64),
-            *discriminator_block(64, 128),
-        )
-
-        # The height and width of downsampled image
-        ds_size = 32 // 2 ** 4
-        self.adv_layer = nn.Linear(128 * ds_size ** 2, 1)
-
-    def forward(self, img):
-        out = self.model(img)
-        out = out.view(out.shape[0], -1)
-        validity = self.adv_layer(out)
-
-        return validity
-
-
-
 # CUDA
 def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -124,8 +67,8 @@ def get_device():
 cuda = True if torch.cuda.is_available() else False
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-generator = Generator(latent_dim=args.latent_dim).to(get_device())
-discriminator = Discriminator().to(get_device())
+generator = generator_models[args.generator_model](latent_dim=args.latent_dim).to(get_device())
+discriminator = discriminator_models[args.discriminator_model]().to(get_device())
 
 generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
@@ -156,6 +99,7 @@ def compute_gradient_penality(D, x_real, x_fake):
 #
 ###############################################################################
 print("########## Running Main Loop ##########################")
+z_sample = Tensor(64, args.latent_dim).normal_()
 for epoch in range(args.n_epochs):
     for i, (x_real, y_real) in enumerate(train):
         if cuda:
@@ -173,8 +117,9 @@ for epoch in range(args.n_epochs):
         optimizer_D.step()
 
 
+        iteration = epoch * len(train) + i
         # update the generator avec discriminator has trained for "n_critic" steps
-        if i % args.n_critic == 0:
+        if iteration % args.n_critic == 0:
             optimizer_G.zero_grad()
             optimizer_D.zero_grad()
             x_fake = generator(z)
@@ -182,11 +127,12 @@ for epoch in range(args.n_epochs):
             generator_loss.backward()
             optimizer_G.step()
 
-        if i % args.sample_interval == 0:
-            utils.make_samples_fig_and_save(x_fake, experiment_path, epoch, i)
+        if iteration % args.sample_interval == 0:
+            x_sample = generator(z_sample)
+            utils.make_samples_fig_and_save(x_sample, experiment_path, epoch, i)
 
-        if i % args.log_interval == 0 :
-            csv_logger.write(epoch, i, wd.item(), gradient_penality.item(), wd_loss.item(), generator_loss.item())
+        if iteration % args.log_interval == 0 :
+            csv_logger.write(iteration, epoch, wd.item(), gradient_penality.item(), wd_loss.item(), generator_loss.item())
             print(f"Epoch={epoch}, i={i}, wd={wd_loss}, g_loss={generator_loss}")
             utils.log(epoch, i, wd_loss, generator_loss)
     utils.save_generator_and_discriminator(experiment_path, g=generator, d=discriminator)
