@@ -45,7 +45,6 @@ torch.manual_seed(args.seed)
 ###############################################################################
 train, valid, test = classify_svhn.get_data_loader("svhn", args.batch_size)
 
-print("len", len(train))
 ###############################################################################
 #
 # MODEL SETUP
