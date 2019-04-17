@@ -132,8 +132,8 @@ for epoch in range(args.n_epochs):
 
         if iteration % args.log_interval == 0 :
             csv_logger.write(iteration, epoch, wd.item(), gradient_penality.item(), wd_loss.item(), generator_loss.item())
-            print(f"Epoch={epoch}, i={i}, wd={wd_loss}, g_loss={generator_loss}")
-            utils.log(epoch, i, wd_loss, generator_loss)
+            print(f"Epoch={epoch}, i={iteration}, wd={wd_loss}, g_loss={generator_loss}")
+            utils.log(epoch, iteration, wd_loss, generator_loss)
     utils.save_generator_and_discriminator(experiment_path, g=generator, d=discriminator)
 # train for as much as much as possible
 # plt D loss
