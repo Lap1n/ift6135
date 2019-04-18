@@ -68,8 +68,6 @@ class VAETrainer(AbstractTrainer):
         valid_loss = total_valid_loss / n_iter
         self.stats.valid_losses.append(valid_loss)
         self.stats.scores.append(valid_loss)
-        # img_arr = self.un_normalize(x_reconstructed[0:5])
-
         self.save_image(x_reconstructed, x, GENERATED_FILENAME)
 
     def save_image(self, x_recons, x, filename, n=5):

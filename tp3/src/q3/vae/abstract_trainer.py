@@ -135,7 +135,11 @@ class AbstractTrainer(ABC):
             self.save_current_best_model(model_filename,
                                          hyper_param_search_state)
             if self.last_checkpoint_filename is not None:
-                os.remove(self.last_checkpoint_filename)
+                try:
+                    os.remove(self.last_checkpoint_filename)
+                except:
+                    pass
+
             self.last_checkpoint_filename = model_filename
             self.current_patience = 0
         else:
