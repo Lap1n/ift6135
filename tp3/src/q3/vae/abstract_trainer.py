@@ -125,12 +125,13 @@ class AbstractTrainer(ABC):
         :return: True if need to stop. False if continue the training
         """
         last_accuracy_computed = self.stats.scores[-1]
-        if last_accuracy_computed > self.stats.best_score:
+        if self.stats.best_score is None \
+                or last_accuracy_computed < self.stats.best_score:
             self.stats.best_score = last_accuracy_computed
             self.best_model = copy.deepcopy(model)
             print('Checkpointing new model...')
             model_filename = self.output_dir + '/checkpoint_{}.pth'.format(
-                self.stats.valid_best_accuracy)
+                int(self.stats.best_score))
             self.save_current_best_model(model_filename,
                                          hyper_param_search_state)
             if self.last_checkpoint_filename is not None:

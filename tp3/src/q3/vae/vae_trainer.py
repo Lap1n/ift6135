@@ -73,6 +73,8 @@ class VAETrainer(AbstractTrainer):
         self.save_image(x_reconstructed, x, GENERATED_FILENAME)
 
     def save_image(self, x_recons, x, filename, n=5):
+        x_recons = self.un_normalize(x_recons)
+        x = self.un_normalize(x)
         images = torch.stack([x[0: n], x_recons[0: n]]).view(-1, x.shape[1],
                                                              x.shape[2],
                                                              x.shape[3])
@@ -81,8 +83,6 @@ class VAETrainer(AbstractTrainer):
 
     def train_batch(self, x, train_loss, train_n_iter):
         x = x.to(self.device)
-        x = self.un_normalize(x)
-
         self.optimizer.zero_grad()
         x_reconstructed, mu, logvar = self.model(x)
         loss = self.loss_function(x_reconstructed, x, mu, logvar)
@@ -92,22 +92,10 @@ class VAETrainer(AbstractTrainer):
         train_n_iter += 1
         return x_reconstructed, x, train_loss, train_n_iter
 
-        # def loss_function(self, x_gen, x, mean, logvar):
-        #     reconstruction_loss = self.reconstruction_loss(x_gen, x)
-        #     kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
-        #     return reconstruction_loss + kl_divergence_loss
-
-    def loss_function(self, recon_x, x, mu, logvar):
-        recon_x = recon_x.view(recon_x.size(0), -1)
-        x = x.view(x.size(0), -1)
-        BCE = -torch.sum(x * torch.log(torch.clamp(recon_x, min=1e-10)) +
-                         (1 - x) * torch.log(
-            torch.clamp(1 - recon_x, min=1e-10)), 1)
-        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), 1)
-        # Normalise by same number of elements as in reconstruction
-        loss = torch.mean(BCE + KLD)
-
-        return loss
+    def loss_function(self, x_gen, x, mean, logvar):
+        reconstruction_loss = self.reconstruction_loss(x_gen, x)
+        kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
+        return reconstruction_loss + kl_divergence_loss
 
     def print_last_epoch_stats(self):
         print('\tTrain Loss: {:.4f}'.format(
@@ -133,7 +121,9 @@ class VAETrainer(AbstractTrainer):
 
     @staticmethod
     def reconstruction_loss(x_reconstructed, x):
-        return torch.nn.BCELoss(size_average=False)(x_reconstructed,
+        # return torch.nn.BCELoss(size_average=False)(x_reconstructed,
+        #                                             x) / x.size(0)
+        return torch.nn.MSELoss(size_average=False)(x_reconstructed,
                                                     x) / x.size(0)
 
     @staticmethod

@@ -21,7 +21,7 @@ class StatsRecorder:
         self.train_loss_history = []
         self.valid_best_accuracy = 0.0
         self.valid_losses = []
-        self.best_score = -100000000.0
+        self.best_score = None
         self.scores = []
         self.generated_images = []
 
