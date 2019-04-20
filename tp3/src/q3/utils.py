@@ -100,7 +100,7 @@ class CsvLogger:
         self.log_path = filepath
         self.log_name = filename
         self.csv_path = os.path.join(self.log_path, self.log_name)
-        self.fieldsnames = ['epoch', 'iteration', 'wd', 'gradient_penality', "wd_loss", "generator_loss"]
+        self.fieldsnames = ['iteration', 'epoch', 'wd', 'gradient_penality', "wd_loss", "generator_loss"]
 
         with open(self.csv_path, 'w') as f:
             writer = csv.DictWriter(f, fieldnames=self.fieldsnames)
@@ -117,8 +117,8 @@ class CsvLogger:
                     self._write(d_num)
 
     def write(self, epoch, iteration, wd, gradient_penality, wd_loss, generator_loss):
-        self._write({"epoch":epoch,
-                    "iteration":iteration,
+        self._write({"iteration":iteration,
+                    "epoch": epoch,
                     "wd":wd,
                     "gradient_penality":gradient_penality,
                     "wd_loss":wd_loss,
