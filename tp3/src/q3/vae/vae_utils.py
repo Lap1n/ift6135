@@ -25,6 +25,11 @@ class StatsRecorder:
         self.scores = []
         self.generated_images = []
 
+        self.train_kl_losses = []
+        self.train_reconstruction_loss = []
+        self.valid_kl_losses = []
+        self.valid_reconstruction_loss = []
+
 
 def load_config(args):
     '''
