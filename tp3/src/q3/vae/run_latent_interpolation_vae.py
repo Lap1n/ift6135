@@ -76,5 +76,6 @@ if __name__ == '__main__':
         model.eval()
         z = Tensor(100, cfg.MODEL.LATENT_SIZE).normal_()
         x_gen = model.decode(z)
+        # x_gen = (x_gen-x_gen.min())/(x_gen.max()-x_gen.min())
         x_gen = un_normalize_transform(x_gen)
-        save_image(x_gen, os.path.join(cfg.OUTPUT_DIR, "test.png"))
+        save_image(x_gen, os.path.join(args.results_dir, "test.png"))

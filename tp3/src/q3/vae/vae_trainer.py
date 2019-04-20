@@ -1,17 +1,15 @@
 import os
 
 import torch
-from PIL import Image
 
 from tqdm import tqdm
-import scipy.misc
 
 from q3.vae.abstract_trainer import AbstractTrainer
-import matplotlib.pyplot as plt
 
 from q3.vae.vae_utils import UnNormalize
 from torchvision.utils import save_image
 
+RECONSTRUCTED_FILENAME = "reconstructed.png"
 GENERATED_FILENAME = "generated.png"
 
 
@@ -51,24 +49,26 @@ class VAETrainer(AbstractTrainer):
         n_iter = 0
         total_loss = 0
         for batch_idx, (data, _) in enumerate(tqdm(self.train_loader)):
-            _, _, total_loss, n_iter = self.train_batch(data, total_loss,
-                                                        n_iter)
+            _, _, total_loss, n_iter = self.process_batch(data, total_loss,
+                                                          n_iter, train=True)
         self.stats.train_loss_history.append(total_loss / n_iter)
 
     def validate(self):
-        self.model.eval()
-        n_iter = 0
-        total_valid_loss = 0
-        for batch_idx, (data, _) in enumerate(tqdm(self.train_loader)):
-            x_reconstructed, x, total_valid_loss, n_iter = self.train_batch(
-                data,
-                total_valid_loss,
-                n_iter)
+        with torch.no_grad():
+            self.model.eval()
+            n_iter = 0
+            total_valid_loss = 0
+            for batch_idx, (data, _) in enumerate(tqdm(self.train_loader)):
+                x_reconstructed, x, total_valid_loss, n_iter = self.process_batch(
+                    data,
+                    total_valid_loss,
+                    n_iter, train=False)
 
-        valid_loss = total_valid_loss / n_iter
-        self.stats.valid_losses.append(valid_loss)
-        self.stats.scores.append(valid_loss)
-        self.save_image(x_reconstructed, x, GENERATED_FILENAME)
+            valid_loss = total_valid_loss / n_iter
+            self.stats.valid_losses.append(valid_loss)
+            self.stats.scores.append(valid_loss)
+            self.save_image(x_reconstructed, x, RECONSTRUCTED_FILENAME)
+            self.generate_samples()
 
     def save_image(self, x_recons, x, filename, n=5):
         x_recons = self.un_normalize(x_recons)
@@ -79,20 +79,33 @@ class VAETrainer(AbstractTrainer):
         save_image(images,
                    os.path.join(self.output_dir, filename), nrow=n)
 
-    def train_batch(self, x, train_loss, train_n_iter):
+    def process_batch(self, x, train_loss, train_n_iter, train):
         x = x.to(self.device)
         self.optimizer.zero_grad()
         x_reconstructed, mu, logvar = self.model(x)
-        loss = self.loss_function(x_reconstructed, x, mu, logvar)
-        loss.backward()
+        loss = self.loss_function(x_reconstructed, x, mu, logvar, train=train)
+        if train:
+            loss.backward()
         train_loss += loss.item()
         self.optimizer.step()
         train_n_iter += 1
         return x_reconstructed, x, train_loss, train_n_iter
 
-    def loss_function(self, x_gen, x, mean, logvar):
+    def generate_samples(self, n=5):
+        imgs = self.model.sample_from_random_z(10)
+        save_image(imgs,
+                   os.path.join(self.output_dir, GENERATED_FILENAME),
+                   nrow=n)
+
+    def loss_function(self, x_gen, x, mean, logvar, train):
         reconstruction_loss = self.reconstruction_loss(x_gen, x)
         kl_divergence_loss = self.kl_divergence_loss(mean, logvar)
+        if train:
+            self.stats.train_kl_losses.append(kl_divergence_loss)
+            self.stats.train_reconstruction_loss.append(reconstruction_loss)
+        else:
+            self.stats.valid_kl_losses.append(kl_divergence_loss)
+            self.stats.valid_reconstruction_loss.append(reconstruction_loss)
         return reconstruction_loss + kl_divergence_loss
 
     def print_last_epoch_stats(self):
@@ -113,14 +126,25 @@ class VAETrainer(AbstractTrainer):
                               step=epoch)
         experiment.log_metric("Valid loss", self.stats.valid_losses[-1],
                               step=epoch)
+
+        experiment.log_metric("KL train loss",
+                              self.stats.train_kl_losses[-1])
+        experiment.log_metric("KL valid loss", self.stats.valid_kl_losses[-1])
+
+        experiment.log_metric("Reconstruction train loss",
+                              self.stats.train_reconstruction_loss[-1])
+        experiment.log_metric("Reconstruction valid loss",
+                              self.stats.valid_reconstruction_loss[-1])
+
+        experiment.log_image(
+            os.path.join(self.output_dir, RECONSTRUCTED_FILENAME),
+            file_name=RECONSTRUCTED_FILENAME, overwrite=False)
         experiment.log_image(
             os.path.join(self.output_dir, GENERATED_FILENAME),
-            file_name=None, overwrite=False)
+            file_name=GENERATED_FILENAME, overwrite=False)
 
     @staticmethod
     def reconstruction_loss(x_reconstructed, x):
-        # return torch.nn.BCELoss(size_average=False)(x_reconstructed,
-        #                                             x) / x.size(0)
         return torch.nn.MSELoss(size_average=False)(x_reconstructed,
                                                     x) / x.size(0)
 
@@ -129,3 +153,6 @@ class VAETrainer(AbstractTrainer):
         return ((
                         mean ** 2 + logvar.exp() - 1 - logvar) / 2).sum() / mean.size(
             0)
+        # kl_div = (-logvar + (
+        #         logvar.exp() + mean ** 2) / 2 - 1 / 2).sum() / mean.size(0)
+        # return kl_div
