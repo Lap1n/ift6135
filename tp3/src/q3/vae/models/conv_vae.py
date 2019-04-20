@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torch.autograd import Variable
 
-from q3.model import Generator
+from q3.models import Generator_dcgan0
 
 
 def buildEncoderNetwork(input_channels, nFilters, hidden_size):
@@ -41,7 +41,7 @@ class ConvVAE(nn.Module):
         self.height = height
         self.nChannels = nChannels
         self.encoder = buildEncoderNetwork(nChannels, nFilters, hidden_size)
-        self.decoder = Generator(latent_dim=z_dim)
+        self.decoder = Generator_dcgan0(latent_dim=z_dim)
         self._enc_mu = nn.Linear(hidden_size, z_dim)
         self._enc_log_sigma = nn.Linear(hidden_size, z_dim)
         self._dec = nn.Linear(z_dim, hidden_size)
