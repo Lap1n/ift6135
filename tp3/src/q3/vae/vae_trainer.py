@@ -153,9 +153,5 @@ class VAETrainer(AbstractTrainer):
 
     @staticmethod
     def kl_divergence_loss(mean, logvar):
-        # return ((
-        #                 mean ** 2 + logvar.exp() - 1 - logvar) / 2).sum() / mean.size(
-        #     0)
-        kl_div = (-logvar + (
-                logvar.exp() + mean ** 2) / 2 - 1 / 2).sum() / mean.size(0)
+        kl_div = ((-logvar + logvar.exp() + mean ** 2 - 1) / 2).sum() / mean.size(0)
         return kl_div
