@@ -66,10 +66,10 @@ if __name__ == '__main__':
             torch.Tensor((0.5, 0.5, 0.5)).to(device))
         model = ConvVAE(
             width=cfg.IMAGE_SIZE, height=cfg.IMAGE_SIZE,
-            nChannels=cfg.MODEL.CHANNEL_NUM,
+            num_channels=cfg.MODEL.CHANNEL_NUM,
             hidden_size=500,
             z_dim=cfg.MODEL.LATENT_SIZE,
-            nFilters=cfg.MODEL.KERNEL_NUM
+            num_filters=cfg.MODEL.KERNEL_NUM
         ).to(device)
         model.load_state_dict(model_dict["model_state_dict"])
 
