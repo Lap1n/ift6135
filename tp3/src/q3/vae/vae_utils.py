@@ -8,6 +8,7 @@ import dateutil.tz
 import torch
 from shutil import copyfile
 import numpy as np
+from torch import Tensor
 
 from q3.vae.config import cfg_from_file, cfg
 
@@ -112,7 +113,23 @@ class UnNormalize(object):
         Returns:
             Tensor: Normalized image.
         """
-        for t, m, s in zip(tensor, self.mean, self.std):
-            t.mul_(s).add_(m)
-            # The normalize code -> t.sub_(m).div_(s)
+        original_shape = tensor.shape
+        tensor = tensor.view(tensor.shape[0], -1, 3)
+        tensor = tensor * self.std + self.mean
+        # The normalize code -> t.sub_(m).div_(s)
+        tensor = tensor.view(original_shape)
         return tensor
+
+
+def convert_image_to_valid_range(img):
+    x_gen = (img - img.min()) / (img.max() - img.min())
+    return x_gen
+
+
+def sample_from_random_z(model, num_sample, transform, device):
+    model.eval()
+    with torch.no_grad():
+        z = Tensor(num_sample, model.z_dim).normal_().to(device)
+        z = model.decoder(z)
+        z = transform(z)
+        return z
