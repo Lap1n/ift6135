@@ -42,25 +42,18 @@ class ConvVAE(nn.Module):
         self.nChannels = num_channels
         self.encoder = Encoder(num_channels, num_filters, hidden_size)
         self.decoder = Generator_dcgan0(latent_dim=z_dim)
-        self._enc_mu = nn.Linear(hidden_size, z_dim)
-        self._enc_log_sigma = nn.Linear(hidden_size, z_dim)
-        self._dec = nn.Linear(z_dim, hidden_size)
-        self._dec_bn = nn.BatchNorm1d(hidden_size)
-        self._dec_relu = nn.ReLU(True)
-        self._dec_act = nn.Tanh()
+        self.linear_mu = nn.Linear(hidden_size, z_dim)
+        self.linear_log_var = nn.Linear(hidden_size, z_dim)
 
-    def reparameterize(self, mu, logvar):
-        if self.training:
-            std = logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
-            return eps.mul(std).add_(mu)
-        else:
-            return mu
+    def reparameterization_trick(self, mu, logvar):
+        std = (logvar * 0.5).exp_()
+        eps = Variable(std.data.new(std.size()).normal_())
+        return eps * std + mu
 
     def forward(self, x):
         h = self.encoder(x)
         h = h.view(-1, self.hidden_size)
-        mu = self._enc_mu(h)
-        logvar = self._enc_log_sigma(h)
-        z = self.reparameterize(mu, logvar)
+        mu = self.linear_mu(h)
+        logvar = self.linear_log_var(h)
+        z = self.reparameterization_trick(mu, logvar)
         return self.decoder(z), mu, logvar
