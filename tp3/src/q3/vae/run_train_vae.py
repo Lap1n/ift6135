@@ -10,7 +10,6 @@ from torch.optim import Adam
 
 from given_code.classify_svhn import get_data_loader
 from q3.vae.models.conv_vae import ConvVAE
-from q3.vae.models.vae import VAE
 from q3.vae.vae_utils import load_config, fix_seed
 from q3.vae.vae_trainer import VAETrainer
 
@@ -73,9 +72,9 @@ if __name__ == '__main__':
     #             z_size=cfg.MODEL.LATENT_SIZE)
     model = ConvVAE(
         width=cfg.IMAGE_SIZE, height=cfg.IMAGE_SIZE,
-        nChannels=cfg.MODEL.CHANNEL_NUM,
+        num_channels=cfg.MODEL.CHANNEL_NUM,
         hidden_size=500,
-        z_dim=cfg.MODEL.LATENT_SIZE, nFilters=cfg.MODEL.KERNEL_NUM
+        z_dim=cfg.MODEL.LATENT_SIZE, num_filters=cfg.MODEL.KERNEL_NUM
     )
 
     optimizer = Adam(model.parameters(), lr=hyper_params["LR"])
