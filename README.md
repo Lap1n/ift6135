@@ -4,7 +4,7 @@ Membre de l'équipe :
 
 Philippe Lelièvre - 20142582
 
-Alice Desrochers -
+Louis-François Préville-Ratelle - 708048
 
 Jean-Gabriel Simard
 
