@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from q3.vae.abstract_trainer import AbstractTrainer
 
-from q3.vae.vae_utils import UnNormalize
+from q3.vae.vae_utils import UnNormalize, sample_from_random_z
 from torchvision.utils import save_image
 
 RECONSTRUCTED_FILENAME = "reconstructed.png"
@@ -38,7 +38,9 @@ class VAETrainer(AbstractTrainer):
                                          valid_loader, device,
                                          output_dir,
                                          hyper_params, max_patience)
-        self.un_normalize = UnNormalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        self.un_normalize = UnNormalize(
+            torch.Tensor((0.5, 0.5, 0.5)).to(device),
+            torch.Tensor((0.5, 0.5, 0.5)).to(device))
 
     def train(self, current_hyper_params):
         """
@@ -91,11 +93,12 @@ class VAETrainer(AbstractTrainer):
         train_n_iter += 1
         return x_reconstructed, x, train_loss, train_n_iter
 
-    def generate_samples(self, n=5):
-        imgs = self.model.sample_from_random_z(10)
+    def generate_samples(self, n=10):
+        imgs = sample_from_random_z(self.model, n, self.un_normalize,
+                                    self.device)
         save_image(imgs,
                    os.path.join(self.output_dir, GENERATED_FILENAME),
-                   nrow=n)
+                   nrow=5)
 
     def loss_function(self, x_gen, x, mean, logvar, train):
         reconstruction_loss = self.reconstruction_loss(x_gen, x)
@@ -150,9 +153,9 @@ class VAETrainer(AbstractTrainer):
 
     @staticmethod
     def kl_divergence_loss(mean, logvar):
-        return ((
-                        mean ** 2 + logvar.exp() - 1 - logvar) / 2).sum() / mean.size(
-            0)
-        # kl_div = (-logvar + (
-        #         logvar.exp() + mean ** 2) / 2 - 1 / 2).sum() / mean.size(0)
-        # return kl_div
+        # return ((
+        #                 mean ** 2 + logvar.exp() - 1 - logvar) / 2).sum() / mean.size(
+        #     0)
+        kl_div = (-logvar + (
+                logvar.exp() + mean ** 2) / 2 - 1 / 2).sum() / mean.size(0)
+        return kl_div

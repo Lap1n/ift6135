@@ -6,15 +6,12 @@ import argparse
 import os
 import sys
 import torch
-from torch import Tensor
-from torch.optim import Adam
+
 from torchvision.utils import save_image
 
-from given_code.classify_svhn import get_data_loader
 from q3.vae.models.conv_vae import ConvVAE
-from q3.vae.models.vae import VAE
-from q3.vae.vae_utils import load_config, fix_seed, UnNormalize
-from q3.vae.vae_trainer import VAETrainer
+from q3.vae.vae_utils import load_config, fix_seed, UnNormalize, \
+    sample_from_random_z
 
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
 sys.path.append(dir_path)
@@ -64,18 +61,19 @@ if __name__ == '__main__':
         seed = 1134
         fix_seed(seed)
         hyper_params = cfg.HYPER_PARAMS.INITIAL_VALUES
-        un_normalize_transform = UnNormalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        un_normalize_transform = UnNormalize(
+            torch.Tensor((0.5, 0.5, 0.5)).to(device),
+            torch.Tensor((0.5, 0.5, 0.5)).to(device))
         model = ConvVAE(
             width=cfg.IMAGE_SIZE, height=cfg.IMAGE_SIZE,
             nChannels=cfg.MODEL.CHANNEL_NUM,
             hidden_size=500,
             z_dim=cfg.MODEL.LATENT_SIZE,
             nFilters=cfg.MODEL.KERNEL_NUM
-        )
+        ).to(device)
         model.load_state_dict(model_dict["model_state_dict"])
-        model.eval()
-        z = Tensor(100, cfg.MODEL.LATENT_SIZE).normal_()
-        x_gen = model.decode(z)
-        # x_gen = (x_gen-x_gen.min())/(x_gen.max()-x_gen.min())
-        x_gen = un_normalize_transform(x_gen)
+
+        x_gen = sample_from_random_z(model, 100, un_normalize_transform,
+                                     device)
+
         save_image(x_gen, os.path.join(args.results_dir, "test.png"))
