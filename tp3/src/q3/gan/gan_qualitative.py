@@ -6,11 +6,10 @@ import torch
 from torch import Tensor
 import numpy as np
 
+from q3.gan.models import discriminator_models, generator_models
+
 sys.path.append("../../")
 sys.path.append("../../../")
-import tp3.src.given_code.classify_svhn as classify_svhn
-import utils
-from models import discriminator_models, generator_models
 from torchvision.utils import save_image
 from tp3.src.q3.vae.vae_utils import fix_seed, UnNormalize
 

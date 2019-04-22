@@ -7,10 +7,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+from q3.gan import utils
+from q3.gan.models import generator_models, discriminator_models
+
 sys.path.append("../../../")
 import tp3.src.given_code.classify_svhn as classify_svhn
-import utils
-from models import discriminator_models, generator_models
 ##############################################################################
 #
 # ARG PARSING AND EXPERIMENT SETUP

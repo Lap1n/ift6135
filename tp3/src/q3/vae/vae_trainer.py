@@ -4,10 +4,10 @@ import torch
 
 from tqdm import tqdm
 
-from q3.vae.abstract_trainer import AbstractTrainer
-
-from q3.vae.vae_utils import UnNormalize, sample_from_random_z
 from torchvision.utils import save_image
+
+from q3.vae.abstract_trainer import AbstractTrainer
+from q3.vae.vae_utils import UnNormalize, sample_from_random_z
 
 RECONSTRUCTED_FILENAME = "reconstructed.png"
 GENERATED_FILENAME = "generated.png"

@@ -10,7 +10,7 @@ from shutil import copyfile
 import numpy as np
 from torch import Tensor
 
-from q3.vae.config import cfg_from_file, cfg
+from q3.vae.config import cfg, cfg_from_file
 
 
 class StatsRecorder:

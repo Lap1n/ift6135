@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torch.autograd import Variable
 
-from q3.models import Generator_dcgan0
+from q3.gan.models import Generator_dcgan0
 
 
 class Encoder(nn.Module):

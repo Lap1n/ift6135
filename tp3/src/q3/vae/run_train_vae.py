@@ -10,8 +10,8 @@ from torch.optim import Adam
 
 from given_code.classify_svhn import get_data_loader
 from q3.vae.models.conv_vae import ConvVAE
-from q3.vae.vae_utils import load_config, fix_seed
 from q3.vae.vae_trainer import VAETrainer
+from q3.vae.vae_utils import load_config, fix_seed
 
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
 sys.path.append(dir_path)

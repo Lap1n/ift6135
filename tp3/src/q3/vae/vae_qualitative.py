@@ -1,13 +1,11 @@
 from __future__ import print_function
 # Import comet_ml in the top
-from comet_ml import Experiment
 
 import argparse
 import os
 import sys
 import torch
 from torch import Tensor
-from torch.optim import Adam
 from torchvision.utils import save_image
 import numpy as np
 
@@ -23,11 +21,8 @@ sys.path.append("./")
 print(dir_path)
 
 from given_code.classify_svhn import get_data_loader
-from q3.vae.models.conv_vae import ConvVAE
-from q3.vae.models.vae import VAE
-from q3.vae.vae_utils import load_config, fix_seed, UnNormalize
-from q3.vae.vae_trainer import VAETrainer
-
+from q3 import ConvVAE
+from q3 import load_config, fix_seed, UnNormalize
 
 
 def parse_args():
