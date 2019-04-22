@@ -3,15 +3,13 @@ import sys
 
 import torch
 import torch.autograd as autograd
-import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 
+from given_code import classify_svhn
 from q3.gan import utils
 from q3.gan.models import generator_models, discriminator_models
 
 sys.path.append("../../../")
-import tp3.src.given_code.classify_svhn as classify_svhn
 ##############################################################################
 #
 # ARG PARSING AND EXPERIMENT SETUP
