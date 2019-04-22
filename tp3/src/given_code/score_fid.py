@@ -72,13 +72,32 @@ def extract_features(classifier, data_loader):
 
 def calculate_fid_score(sample_feature_iterator,
                         testset_feature_iterator):
-    """
-    To be implemented by you!
-    """
-    raise NotImplementedError(
-        "TO BE IMPLEMENTED."
-        "Part of Assignment 3 Quantitative Evaluations"
-    )
+    
+    sample_features = np.zeros((1000, 512))
+    test_features = np.zeros((1000, 512))
+
+    i = 0
+    for sample_f, test_f in zip(sample_feature_iterator, testset_feature_iterator):
+        sample_features[i] = sample_f
+        test_features[i] = test_f
+        i += 1
+
+    mu_sample_f = np.mean(sample_features, axis=0)
+    mu_test_f = np.mean(test_features, axis=0)
+
+    cov_sample_f = np.cov(sample_features, rowvar=False)
+    cov_test_f = np.cov(test_features, rowvar=False)
+
+    ### Debug prints
+    #print(mu_sample_f.shape)
+    #print(mu_test_f.shape)
+    #print(cov_sample_f.shape)
+    #print(cov_test_f.shape)
+
+    d_squared = np.linalg.norm(mu_test_f - mu_sample_f) ** 2 + \
+                np.trace(cov_test_f + cov_sample_f - 2 * linalg.sqrtm(np.matmul(cov_test_f, cov_sample_f)))
+
+    return d_squared
 
 
 if __name__ == "__main__":
